@@ -194,6 +194,24 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
   <button class="btn btn-outline" onclick="backHome()">返回首页</button>
 </div>
 
+<!-- 订单详情页（已使用卡查询） -->
+<div id="page-order-detail" class="page">
+  <div class="header">
+    <h1>📋 我的订单</h1>
+    <p>该卡已提交提货订单</p>
+  </div>
+  <div class="card">
+    <div class="order-detail" id="orderDetailBox"></div>
+  </div>
+  <div style="background:#fff3e0; border:2px solid #ff9800; border-radius:8px; padding:15px; margin-bottom:15px; font-size:14px; color:#e65100; line-height:1.8;">
+    <strong>⚠️ 如尚未通知商家，请点击下方按钮！</strong><br>
+    点击后会自动打开邮件，点「发送」即可通知商家发货<br>
+    不通知商家可能导致发货延迟
+  </div>
+  <button class="btn" onclick="sendOrderEmail()">📧 通知商家发货（点我发邮件）</button>
+  <button class="btn btn-outline" onclick="backHome()">返回首页</button>
+</div>
+
 <!-- 管理后台登录 -->
 <div id="page-admin-login" class="page">
   <div class="admin-login">
@@ -317,7 +335,9 @@ async function verifyCard() {
         }
 
         if (data.used) {
-            toast('该卡已提货，请勿重复使用');
+            // 卡已使用，查询订单并显示详情页
+            currentCard = data;
+            await showOrderDetail(data.card_no);
             setLoading('btnVerify', false, '立即提货');
             return;
         }
@@ -336,6 +356,59 @@ async function verifyCard() {
     }
 
     setLoading('btnVerify', false, '立即提货');
+}
+
+async function showOrderDetail(cardNo) {
+    try {
+        // 查询该卡的订单
+        var { data: orders, error } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('card_no', cardNo)
+            .order('create_time', { ascending: false })
+            .limit(1);
+
+        if (error || !orders || orders.length === 0) {
+            toast('未找到订单记录');
+            return;
+        }
+
+        var o = orders[0];
+        // 设置currentOrder，供sendOrderEmail使用
+        currentOrder = {
+            orderNo: o.order_no,
+            cardNo: o.card_no,
+            cardType: o.card_type,
+            recvName: o.recv_name,
+            recvPhone: o.recv_phone,
+            province: o.province,
+            city: o.city,
+            district: o.district,
+            address: o.address,
+            remark: o.remark,
+            fee: o.fee,
+            status: o.status
+        };
+
+        // 显示订单详情
+        var time = o.create_time ? new Date(o.create_time).toLocaleString('zh-CN') : '';
+        document.getElementById('orderDetailBox').innerHTML =
+            '<div class="row"><span class="label">订单号</span><span class="value">' + o.order_no + '</span></div>' +
+            '<div class="row"><span class="label">下单时间</span><span class="value">' + time + '</span></div>' +
+            '<div class="row"><span class="label">卡型</span><span class="value">' + o.card_type + '</span></div>' +
+            '<div class="row"><span class="label">卡号</span><span class="value">' + o.card_no + '</span></div>' +
+            '<div class="row"><span class="label">收货人</span><span class="value">' + o.recv_name + '</span></div>' +
+            '<div class="row"><span class="label">电话</span><span class="value">' + o.recv_phone + '</span></div>' +
+            '<div class="row"><span class="label">地址</span><span class="value">' + o.province + o.city + o.district + o.address + '</span></div>' +
+            '<div class="row"><span class="label">运费</span><span class="value">' + (o.fee === 0 ? '包邮' : o.fee + '元') + '</span></div>' +
+            (o.remark ? '<div class="row"><span class="label">备注</span><span class="value">' + o.remark + '</span></div>' : '') +
+            '<div class="row"><span class="label">状态</span><span class="value" style="color:#e65100;">' + o.status + '</span></div>';
+
+        showPage('page-order-detail');
+    } catch (e) {
+        toast('查询订单失败');
+        console.error(e);
+    }
 }
 
 function calcFee() {
