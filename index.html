@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>蟹满足·精品蟹提货系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#f5f5f5;color:#333;line-height:1.5}
+.container{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;position:relative}
+.header{background:linear-gradient(135deg,#c8102e,#8b0000);color:#fff;padding:30px 20px;text-align:center}
+.header h1{font-size:22px;font-weight:700;margin-bottom:5px}
+.header p{font-size:13px;opacity:.9}
+.card{margin:20px 15px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);overflow:hidden}
+.card-title{padding:15px 20px;font-size:16px;font-weight:600;border-bottom:1px solid #f0f0f0;background:#fafafa}
+.card-body{padding:20px}
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:14px;color:#666;margin-bottom:8px;font-weight:500}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;outline:none;transition:border-color .2s;background:#fff}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#c8102e}
+.btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.btn-primary{background:linear-gradient(135deg,#c8102e,#8b0000);color:#fff}
+.btn-primary:active{opacity:.85}
+.btn-outline{background:#fff;color:#c8102e;border:1px solid #c8102e}
+.tip{font-size:12px;color:#999;margin-top:8px}
+.success-icon{width:80px;height:80px;margin:0 auto 20px;background:#52c41a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px}
+.error-icon{width:80px;height:80px;margin:0 auto 20px;background:#ff4d4f;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px}
+.info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px dashed #f0f0f0;font-size:14px}
+.info-row:last-child{border-bottom:none}
+.info-label{color:#666}
+.info-value{font-weight:500;color:#333}
+.price{color:#c8102e;font-size:18px;font-weight:700}
+.qrcode-box{text-align:center;padding:20px;background:#fafafa;border-radius:8px;margin:15px 0}
+.qrcode-box img{width:200px;height:200px;background:#fff;padding:10px;border-radius:8px}
+.admin-link{text-align:center;padding:20px;font-size:12px;color:#ccc}
+.admin-link a{color:#ccc;text-decoration:none}
+.hide{display:none}
+.tab-bar{display:flex;border-bottom:1px solid #f0f0f0;background:#fafafa}
+.tab-item{flex:1;padding:14px;text-align:center;font-size:14px;color:#666;cursor:pointer;border-bottom:2px solid transparent}
+.tab-item.active{color:#c8102e;border-bottom-color:#c8102e;font-weight:600}
+.table{width:100%;font-size:12px;border-collapse:collapse}
+.table th,.table td{padding:8px 6px;text-align:left;border-bottom:1px solid #f0f0f0}
+.table th{background:#fafafa;font-weight:600;color:#666}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.stat-item{background:#fafafa;padding:15px 10px;text-align:center;border-radius:8px}
+.stat-num{font-size:20px;font-weight:700;color:#c8102e}
+.stat-label{font-size:12px;color:#666;margin-top:4px}
+.pay-tip{background:#fff7e6;color:#d46b08;padding:12px;border-radius:8px;font-size:13px;margin:15px 0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- 首页：卡号验证 -->
+<div id="page-home">
+  <div class="header">
+    <h1>🦀 蟹满足 · 精品蟹</h1>
+    <p>正宗阳澄湖大闸蟹 · 鲜活直达</p>
+  </div>
+  <div class="card">
+    <div class="card-title">蟹卡提货</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label>蟹卡卡号</label>
+        <input type="text" id="cardNo" placeholder="请输入蟹卡卡号" maxlength="20">
+      </div>
+      <div class="form-group">
+        <label>提货密码</label>
+        <input type="password" id="cardPwd" placeholder="请输入密码" maxlength="10">
+      </div>
+      <button class="btn btn-primary" onclick="verifyCard()">立即提货</button>
+      <div class="tip">提示：卡号和密码印在蟹卡背面刮开处</div>
+    </div>
+  </div>
+</div>
+
+<!-- 卡信息确认页 -->
+<div id="page-info" class="hide">
+  <div class="header">
+    <h1>蟹卡信息确认</h1>
+    <p>请核对您的蟹卡套餐</p>
+  </div>
+  <div class="card">
+    <div class="card-title">套餐详情</div>
+    <div class="card-body">
+      <div class="info-row">
+        <span class="info-label">卡型</span>
+        <span class="info-value" id="info-type"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">规格</span>
+        <span class="info-value" id="info-spec"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">蟹卡状态</span>
+        <span class="info-value" style="color:#52c41a">未提货</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">运费</span>
+        <span class="info-value" id="info-freight">江浙沪皖包邮</span>
+      </div>
+      <div style="margin-top:20px">
+        <button class="btn btn-primary" onclick="goAddress()">填写收货信息</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 收货信息页 -->
+<div id="page-address" class="hide">
+  <div class="header">
+    <h1>填写收货信息</h1>
+    <p>请准确填写，确保快递能送达</p>
+  </div>
+  <div class="card">
+    <div class="card-title">收货地址</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label>收货人姓名</label>
+        <input type="text" id="recvName" placeholder="请输入姓名">
+      </div>
+      <div class="form-group">
+        <label>手机号码</label>
+        <input type="tel" id="recvPhone" placeholder="请输入手机号" maxlength="11">
+      </div>
+      <div class="form-group">
+        <label>所在地区</label>
+        <select id="recvProvince" onchange="calcFreight()">
+          <option value="">请选择省份</option>
+          <option value="江苏">江苏</option>
+          <option value="浙江">浙江</option>
+          <option value="上海">上海</option>
+          <option value="安徽">安徽</option>
+          <option value="北京">北京</option>
+          <option value="天津">天津</option>
+          <option value="山东">山东</option>
+          <option value="广东">广东</option>
+          <option value="福建">福建</option>
+          <option value="江西">江西</option>
+          <option value="湖北">湖北</option>
+          <option value="湖南">湖南</option>
+          <option value="河南">河南</option>
+          <option value="河北">河北</option>
+          <option value="四川">四川</option>
+          <option value="重庆">重庆</option>
+          <option value="陕西">陕西</option>
+          <option value="辽宁">辽宁</option>
+          <option value="山西">山西</option>
+          <option value="黑龙江">黑龙江</option>
+          <option value="吉林">吉林</option>
+          <option value="云南">云南</option>
+          <option value="贵州">贵州</option>
+          <option value="广西">广西</option>
+          <option value="甘肃">甘肃</option>
+          <option value="青海">青海</option>
+          <option value="宁夏">宁夏</option>
+          <option value="内蒙古">内蒙古</option>
+          <option value="新疆">新疆</option>
+          <option value="西藏">西藏</option>
+          <option value="海南">海南</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>详细地址</label>
+        <textarea id="recvAddr" rows="3" placeholder="请输入详细地址（街道、门牌号等）"></textarea>
+      </div>
+      <div class="form-group">
+        <label>备注（选填）</label>
+        <input type="text" id="remark" placeholder="如有特殊要求请备注">
+      </div>
+      <div class="info-row" style="margin:15px 0">
+        <span class="info-label">运费</span>
+        <span class="info-value price" id="addr-freight">¥0.00</span>
+      </div>
+      <button class="btn btn-primary" onclick="submitOrder()">提交订单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 支付页 -->
+<div id="page-pay" class="hide">
+  <div class="header">
+    <h1>订单支付</h1>
+    <p>请完成支付后发货</p>
+  </div>
+  <div class="card">
+    <div class="card-title">订单信息</div>
+    <div class="card-body">
+      <div class="info-row">
+        <span class="info-label">订单号</span>
+        <span class="info-value" id="pay-orderNo"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">套餐</span>
+        <span class="info-value" id="pay-type"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">收货人</span>
+        <span class="info-value" id="pay-name"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">电话</span>
+        <span class="info-value" id="pay-phone"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">地址</span>
+        <span class="info-value" id="pay-addr"></span>
+      </div>
+      <div class="info-row" style="margin-top:10px">
+        <span class="info-label">应付金额</span>
+        <span class="info-value price" id="pay-amount">¥0.00</span>
+      </div>
+      
+      <div class="pay-tip">
+        💡 请微信扫码支付，支付时备注订单号，支付完成后点击下方确认按钮
+      </div>
+      
+      <div class="qrcode-box">
+        <div style="font-size:14px;color:#666;margin-bottom:10px">微信扫码支付</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=wxp://f2f0xxxxxxxx" alt="微信收款码">
+        <div style="font-size:12px;color:#999;margin-top:10px">收款方：蟹满足精品蟹</div>
+      </div>
+      
+      <button class="btn btn-primary" onclick="paySuccess()">我已支付，确认发货</button>
+      <button class="btn btn-outline" style="margin-top:10px" onclick="notifySeller()">📧 通知商家</button>
+    </div>
+  </div>
+</div>
+
+<!-- 成功页 -->
+<div id="page-success" class="hide">
+  <div class="header">
+    <h1>提货成功！</h1>
+    <p>我们将尽快为您安排发货</p>
+  </div>
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:30px 20px">
+      <div class="success-icon">✓</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:20px">订单提交成功</div>
+      
+      <div class="info-row">
+        <span class="info-label">订单号</span>
+        <span class="info-value" id="suc-orderNo"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">套餐</span>
+        <span class="info-value" id="suc-type"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">预计发货</span>
+        <span class="info-value">48小时内</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">快递单号</span>
+        <span class="info-value">发货后短信通知</span>
+      </div>
+      
+      <div style="margin-top:25px">
+        <button class="btn btn-outline" onclick="backHome()">返回首页</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 错误页 -->
+<div id="page-error" class="hide">
+  <div class="header">
+    <h1>验证失败</h1>
+    <p>蟹卡信息有误或已提货</p>
+  </div>
+  <div class="card">
+    <div class="card-body" style="text-align:center;padding:30px 20px">
+      <div class="error-icon">✕</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:10px" id="error-msg">卡号或密码错误</div>
+      <div style="font-size:13px;color:#999;margin-bottom:20px">请检查卡号和密码是否正确</div>
+      <button class="btn btn-primary" onclick="backHome()">返回重新输入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理后台登录 -->
+<div id="page-admin-login" class="hide">
+  <div class="header">
+    <h1>管理后台</h1>
+    <p>蟹卡提货系统管理端</p>
+  </div>
+  <div class="card">
+    <div class="card-title">管理员登录</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label>管理密码</label>
+        <input type="password" id="adminPwd" placeholder="请输入管理密码">
+      </div>
+      <button class="btn btn-primary" onclick="adminLogin()">登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理后台首页 -->
+<div id="page-admin" class="hide">
+  <div class="header">
+    <h1>管理后台</h1>
+    <p>订单与蟹卡管理</p>
+  </div>
+  
+  <div class="tab-bar">
+    <div class="tab-item active" onclick="switchTab('stat')">数据统计</div>
+    <div class="tab-item" onclick="switchTab('order')">订单管理</div>
+    <div class="tab-item" onclick="switchTab('card')">蟹卡管理</div>
+  </div>
+  
+  <div class="card-body">
+    <!-- 统计 -->
+    <div id="tab-stat">
+      <div class="stat-grid">
+        <div class="stat-item">
+          <div class="stat-num" id="stat-total">0</div>
+          <div class="stat-label">蟹卡总数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-used">0</div>
+          <div class="stat-label">已提货</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-fee">0</div>
+          <div class="stat-label">运费收入(元)</div>
+        </div>
+      </div>
+      
+      <div class="stat-grid">
+        <div class="stat-item">
+          <div class="stat-num" id="stat-1088">0</div>
+          <div class="stat-label">1088型剩余</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-1688">0</div>
+          <div class="stat-label">1688型剩余</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-2088">0</div>
+          <div class="stat-label">2088型剩余</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 订单 -->
+    <div id="tab-order" class="hide">
+      <div class="form-group">
+        <input type="text" id="searchOrder" placeholder="搜索订单号/姓名/电话" oninput="searchOrders()">
+      </div>
+      <div style="overflow-x:auto">
+        <table class="table" id="orderTable">
+          <thead>
+            <tr>
+              <th>订单号</th>
+              <th>卡型</th>
+              <th>收货人</th>
+              <th>电话</th>
+              <th>地址</th>
+              <th>运费</th>
+              <th>状态</th>
+              <th>时间</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- 蟹卡 -->
+    <div id="tab-card" class="hide">
+      <div class="form-group">
+        <input type="text" id="searchCard" placeholder="搜索卡号" oninput="searchCards()">
+      </div>
+      <div style="overflow-x:auto">
+        <table class="table" id="cardTable">
+          <thead>
+            <tr>
+              <th>卡号</th>
+              <th>卡型</th>
+              <th>状态</th>
+              <th>提货时间</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <div style="padding:20px">
+    <button class="btn btn-outline" onclick="adminLogout()">退出管理</button>
+  </div>
+</div>
+
+<div class="admin-link">
+  <a href="javascript:;" onclick="showAdmin()">管理入口</a>
+</div>
+
+</div>
+
+<script>
+// 蟹卡数据（Base64编码）
+var CARDS_DATA = "W3sibm8iOiJYWkoxMDg4LTAwMDAxIiwicHdkIjoiMTU3Nzk1IiwidHlwZSI6IjEwODjvvIkiLCJzcGVjIjoi5YWs6JebMy4w5LikeTRf5bCP5paw5qihMi4w5LikeTRfIiwidXNlZCI6ZmFsc2V9LHsibm8iOiJYWkoxMDg4LTAwMDAyIiwicHdkIjoiMzI0NjU3IiwidHlwZSI6IjEwODjvvIkiLCJzcGVjIjoi5YWs6JebMy4w5LikeTRf5bCP5paw5qihMi4w5LikeTRfIiwidXNlZCI6ZmFsc2V9LHsibm8iOiJYWkoxNjg4LTAwMDAxIiwicHdkIjoiODM1ODI4IiwidHlwZSI6IjE2ODjvvIkiLCJzcGVjIjoi5YWs6JebNC4w5LikeTVf5bCP5paw5qihMi415LikeTVfIiwidXNlZCI6ZmFsc2V9LHsibm8iOiJYWkoxNjg4LTAwMDAyIiwicHdkIjoiMjE0OTM2IiwidHlwZSI6IjE2ODjvvIkiLCJzcGVjIjoi5YWs6JebNC4w5LikeTVf5bCP5paw5qihMi415LikeTVfIiwidXNlZCI6ZmFsc2V9LHsibm8iOiJYWkoyMDg4LTAwMDAxIiwicHdkIjoiMzcwMzc4IiwidHlwZSI6IjIwODjvvIkiLCJzcGVjIjoi5YWs6JebNS4w5LikeTZf5bCP5paw5qihMy4w5LikeTZfIiwidXNlZCI6ZmFsc2V9LHsibm8iOiJYWkoyMDg4LTAwMDAyIiwicHdkIjoiOTQ2MTU1IiwidHlwZSI6IjIwODjvvIkiLCJzcGVjIjoi5YWs6JebNS4w5LikeTZf5bCP5paw5qihMy4w5LikeTZfIiwidXNlZCI6ZmFsc2V9XQ==";
+
+// 解码蟹卡数据（修复UTF-8中文乱码）
+function decodeBase64(str) {
+  try {
+    return decodeURIComponent(escape(atob(str)));
+  } catch(e) {
+    return atob(str);
+  }
+}
+
+var cards = JSON.parse(decodeBase64(CARDS_DATA));
+var currentCard = null;
+var currentOrder = null;
+var ADMIN_PWD = "admin888";
+
+// 页面切换
+function showPage(id) {
+  var pages = ['page-home','page-info','page-address','page-pay','page-success','page-error','page-admin-login','page-admin'];
+  pages.forEach(function(p){ document.getElementById(p).classList.add('hide'); });
+  document.getElementById(id).classList.remove('hide');
+  window.scrollTo(0,0);
+}
+
+// 验证蟹卡
+function verifyCard() {
+  var no = document.getElementById('cardNo').value.trim();
+  var pwd = document.getElementById('cardPwd').value.trim();
+  if(!no || !pwd) { alert('请输入卡号和密码'); return; }
+  
+  var card = cards.find(function(c){ return c.no === no && c.pwd === pwd; });
+  if(!card) {
+    document.getElementById('error-msg').textContent = '卡号或密码错误';
+    showPage('page-error');
+    return;
+  }
+  if(card.used) {
+    document.getElementById('error-msg').textContent = '该蟹卡已提货，不可重复使用';
+    showPage('page-error');
+    return;
+  }
+  
+  currentCard = card;
+  document.getElementById('info-type').textContent = card.type;
+  document.getElementById('info-spec').textContent = card.spec;
+  showPage('page-info');
+}
+
+// 计算运费
+function calcFreight() {
+  var prov = document.getElementById('recvProvince').value;
+  var free = ['江苏','浙江','上海','安徽'];
+  var far = ['新疆','西藏','青海','甘肃','宁夏','内蒙古'];
+  var freight = 0;
+  
+  if(free.indexOf(prov) === -1) {
+    freight = 30;
+  }
+  if(far.indexOf(prov) !== -1) {
+    freight = 0;
+    alert('抱歉，偏远地区暂不发货，请联系客服');
+    document.getElementById('recvProvince').value = '';
+  }
+  
+  document.getElementById('addr-freight').textContent = freight > 0 ? '¥' + freight + '.00' : '包邮';
+  return freight;
+}
+
+// 去填写地址
+function goAddress() {
+  showPage('page-address');
+}
+
+// 生成订单号
+function genOrderNo() {
+  var d = new Date();
+  var s = d.getFullYear().toString() + 
+    (d.getMonth()+1).toString().padStart(2,'0') + 
+    d.getDate().toString().padStart(2,'0') +
+    d.getHours().toString().padStart(2,'0') +
+    d.getMinutes().toString().padStart(2,'0') +
+    d.getSeconds().toString().padStart(2,'0') +
+    Math.floor(Math.random()*1000).toString().padStart(3,'0');
+  return s;
+}
+
+// 提交订单
+function submitOrder() {
+  var name = document.getElementById('recvName').value.trim();
+  var phone = document.getElementById('recvPhone').value.trim();
+  var prov = document.getElementById('recvProvince').value;
+  var addr = document.getElementById('recvAddr').value.trim();
+  var remark = document.getElementById('remark').value.trim();
+  
+  if(!name) { alert('请输入收货人姓名'); return; }
+  if(!phone || !/^1\d{10}$/.test(phone)) { alert('请输入正确的手机号'); return; }
+  if(!prov) { alert('请选择省份'); return; }
+  if(!addr) { alert('请输入详细地址'); return; }
+  
+  var freight = calcFreight();
+  var orderNo = genOrderNo();
+  
+  var order = {
+    orderNo: orderNo,
+    cardNo: currentCard.no,
+    type: currentCard.type,
+    name: name,
+    phone: phone,
+    province: prov,
+    address: addr,
+    remark: remark,
+    freight: freight,
+    status: '待发货',
+    createTime: new Date().toLocaleString('zh-CN')
+  };
+  
+  // 保存订单
+  var orders = JSON.parse(localStorage.getItem('crab_orders') || '[]');
+  orders.unshift(order);
+  localStorage.setItem('crab_orders', JSON.stringify(orders));
+  
+  // 标记蟹卡已使用
+  currentCard.used = true;
+  currentCard.useTime = order.createTime;
+  localStorage.setItem('crab_cards', JSON.stringify(cards));
+  
+  currentOrder = order;
+  
+  // 显示支付页
+  document.getElementById('pay-orderNo').textContent = orderNo;
+  document.getElementById('pay-type').textContent = currentCard.type;
+  document.getElementById('pay-name').textContent = name;
+  document.getElementById('pay-phone').textContent = phone;
+  document.getElementById('pay-addr').textContent = prov + ' ' + addr;
+  document.getElementById('pay-amount').textContent = '¥' + freight + '.00';
+  
+  showPage('page-pay');
+}
+
+// 支付成功
+function paySuccess() {
+  document.getElementById('suc-orderNo').textContent = currentOrder.orderNo;
+  document.getElementById('suc-type').textContent = currentOrder.type;
+  showPage('page-success');
+}
+
+// 通知商家（邮件）
+function notifySeller() {
+  var subject = encodeURIComponent('【蟹满足】新订单通知 - ' + currentOrder.orderNo);
+  var body = encodeURIComponent(
+    '订单号：' + currentOrder.orderNo + '\n' +
+    '卡型：' + currentOrder.type + '\n' +
+    '卡号：' + currentOrder.cardNo + '\n' +
+    '收货人：' + currentOrder.name + '\n' +
+    '电话：' + currentOrder.phone + '\n' +
+    '地址：' + currentOrder.province + currentOrder.address + '\n' +
+    '运费：' + currentOrder.freight + '元\n' +
+    '备注：' + (currentOrder.remark || '无') + '\n' +
+    '下单时间：' + currentOrder.createTime
+  );
+  window.location.href = 'mailto:1015831567@qq.com?subject=' + subject + '&body=' + body;
+}
+
+// 返回首页
+function backHome() {
+  currentCard = null;
+  currentOrder = null;
+  document.getElementById('cardNo').value = '';
+  document.getElementById('cardPwd').value = '';
+  showPage('page-home');
+}
+
+// 管理入口
+function showAdmin() {
+  showPage('page-admin-login');
+}
+
+// 管理员登录
+function adminLogin() {
+  var pwd = document.getElementById('adminPwd').value;
+  if(pwd !== ADMIN_PWD) { alert('密码错误'); return; }
+  
+  // 从本地存储加载最新数据
+  var savedCards = localStorage.getItem('crab_cards');
+  if(savedCards) cards = JSON.parse(savedCards);
+  
+  loadAdminData();
+  showPage('page-admin');
+}
+
+// 加载管理数据
+function loadAdminData() {
+  var orders = JSON.parse(localStorage.getItem('crab_orders') || '[]');
+  
+  // 统计
+  document.getElementById('stat-total').textContent = cards.length;
+  var usedCount = cards.filter(function(c){ return c.used; }).length;
+  document.getElementById('stat-used').textContent = usedCount;
+  
+  var totalFee = orders.reduce(function(sum,o){ return sum + (o.freight||0); }, 0);
+  document.getElementById('stat-fee').textContent = totalFee;
+  
+  var count1088 = cards.filter(function(c){ return c.type.indexOf('1088')===0 && !c.used; }).length;
+  var count1688 = cards.filter(function(c){ return c.type.indexOf('1688')===0 && !c.used; }).length;
+  var count2088 = cards.filter(function(c){ return c.type.indexOf('2088')===0 && !c.used; }).length;
+  document.getElementById('stat-1088').textContent = count1088;
+  document.getElementById('stat-1688').textContent = count1688;
+  document.getElementById('stat-2088').textContent = count2088;
+  
+  // 订单列表
+  renderOrders(orders);
+  
+  // 蟹卡列表
+  renderCards(cards);
+}
+
+// 渲染订单
+function renderOrders(list) {
+  var tbody = document.querySelector('#orderTable tbody');
+  tbody.innerHTML = '';
+  list.forEach(function(o){
+    var tr = document.createElement('tr');
+    tr.innerHTML = 
+      '<td>'+o.orderNo+'</td>' +
+      '<td>'+o.type+'</td>' +
+      '<td>'+o.name+'</td>' +
+      '<td>'+o.phone+'</td>' +
+      '<td>'+o.province+o.address+'</td>' +
+      '<td>'+o.freight+'</td>' +
+      '<td>'+o.status+'</td>' +
+      '<td>'+o.createTime+'</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// 渲染蟹卡
+function renderCards(list) {
+  var tbody = document.querySelector('#cardTable tbody');
+  tbody.innerHTML = '';
+  list.forEach(function(c){
+    var tr = document.createElement('tr');
+    tr.innerHTML = 
+      '<td>'+c.no+'</td>' +
+      '<td>'+c.type+'</td>' +
+      '<td style="color:'+(c.used?'#ff4d4f':'#52c41a')+'">'+(c.used?'已提货':'未使用')+'</td>' +
+      '<td>'+(c.useTime || '-')+'</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// 搜索订单
+function searchOrders() {
+  var kw = document.getElementById('searchOrder').value.trim().toLowerCase();
+  var orders = JSON.parse(localStorage.getItem('crab_orders') || '[]');
+  if(!kw) { renderOrders(orders); return; }
+  var filtered = orders.filter(function(o){
+    return o.orderNo.toLowerCase().indexOf(kw) !== -1 ||
+           o.name.toLowerCase().indexOf(kw) !== -1 ||
+           o.phone.indexOf(kw) !== -1;
+  });
+  renderOrders(filtered);
+}
+
+// 搜索蟹卡
+function searchCards() {
+  var kw = document.getElementById('searchCard').value.trim().toLowerCase();
+  if(!kw) { renderCards(cards); return; }
+  var filtered = cards.filter(function(c){
+    return c.no.toLowerCase().indexOf(kw) !== -1;
+  });
+  renderCards(filtered);
+}
+
+// 切换标签
+function switchTab(tab) {
+  document.querySelectorAll('.tab-item').forEach(function(t){ t.classList.remove('active'); });
+  event.target.classList.add('active');
+  ['stat','order','card'].forEach(function(t){
+    document.getElementById('tab-'+t).classList.add('hide');
+  });
+  document.getElementById('tab-'+tab).classList.remove('hide');
+}
+
+// 退出管理
+function adminLogout() {
+  showPage('page-home');
+}
+
+// 初始化
+window.onload = function() {
+  // 从本地存储恢复蟹卡状态
+  var saved = localStorage.getItem('crab_cards');
+  if(saved) cards = JSON.parse(saved);
+};
+</script>
+</body>
+</html>
