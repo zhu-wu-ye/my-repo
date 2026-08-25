@@ -60,6 +60,15 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
 @keyframes spin { to { transform:rotate(360deg); } }
 .search-box { display:flex; gap:8px; margin-bottom:12px; }
 .search-box input { flex:1; }
+.wechat-mask { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; display:none; padding:20px; }
+.wechat-mask.show { display:block; }
+.wechat-mask .arrow { position:absolute; top:10px; right:30px; width:60px; height:80px; }
+.wechat-mask .arrow::before { content:''; position:absolute; top:0; right:0; width:30px; height:30px; border-left:3px solid #fff; border-bottom:3px solid #fff; transform:rotate(-45deg); }
+.wechat-mask .tip-box { margin-top:100px; text-align:center; color:#fff; }
+.wechat-mask .tip-box h3 { font-size:20px; margin-bottom:15px; color:#FFD700; }
+.wechat-mask .tip-box p { font-size:15px; line-height:1.8; margin-bottom:10px; }
+.wechat-mask .tip-box .step { background:rgba(255,255,255,0.1); border-radius:8px; padding:12px; margin:10px 0; text-align:left; font-size:14px; }
+.wechat-mask .close-btn { margin-top:25px; padding:12px 30px; background:#B22222; color:#FFD700; border:none; border-radius:8px; font-size:15px; }
 </style>
 </head>
 <body>
@@ -456,8 +465,25 @@ function paySuccess() {
     showPage('page-success');
 }
 
+function isWeChat() {
+    return /MicroMessenger/i.test(navigator.userAgent);
+}
+
+function showWechatMask() {
+    document.getElementById('wechatMask').classList.add('show');
+}
+
+function closeWechatMask() {
+    document.getElementById('wechatMask').classList.remove('show');
+}
+
 function sendOrderEmail() {
-    // 模拟发送邮件通知
+    // 微信环境下显示引导层
+    if (isWeChat()) {
+        showWechatMask();
+        return;
+    }
+    // 浏览器环境正常发邮件
     var subject = encodeURIComponent('【蟹卡提货】新订单 ' + currentOrder.orderNo);
     var body = encodeURIComponent(
         '订单号：' + currentOrder.orderNo + '\n' +
@@ -629,6 +655,26 @@ function renderStats(s) {
         '</div></div></div>';
 }
 </script>
+
+<!-- 微信环境引导层 -->
+<div class="wechat-mask" id="wechatMask" onclick="closeWechatMask()">
+  <div class="arrow"></div>
+  <div class="tip-box">
+    <h3>📱 请在浏览器中打开</h3>
+    <p>微信内无法直接发送邮件通知商家</p>
+    <div class="step">
+      <strong>第一步：</strong>点击右上角 <strong>「···」</strong> 菜单按钮
+    </div>
+    <div class="step">
+      <strong>第二步：</strong>选择 <strong>「在浏览器打开」</strong>
+    </div>
+    <div class="step">
+      <strong>第三步：</strong>在浏览器中点击「通知商家发货」即可发送邮件
+    </div>
+    <p style="font-size:13px; color:#ccc; margin-top:15px;">订单已提交成功，商家也可在管理后台查看</p>
+    <button class="close-btn">我知道了</button>
+  </div>
+</div>
 
 </body>
 </html>
