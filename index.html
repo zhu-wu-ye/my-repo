@@ -93,11 +93,15 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
   <div class="card" style="background:#fff8e1;">
     <p style="font-size:13px; color:#e65100; line-height:1.6;">
       <strong>温馨提示：</strong><br>
-      1. 请准确输入卡号和密码<br>
-      2. 江浙沪皖地区包邮，其他地区运费30元<br>
-      3. 偏远地区（新疆、西藏、青海、内蒙古、甘肃、宁夏、海南）暂不发货<br>
-      4. 每张卡仅限使用一次，提交后不可重复提货
+      1. 提货时间：每年 <strong>9月25日至12月25日</strong><br>
+      2. 请准确输入卡号和密码<br>
+      3. 江浙沪皖地区包邮，其他地区运费30元<br>
+      4. 偏远地区（新疆、西藏、青海、内蒙古、甘肃、宁夏、海南）暂不发货<br>
+      5. 每张卡仅限使用一次，提交后不可重复提货
     </p>
+  </div>
+  <div style="text-align:center; margin-top:10px;">
+    <a href="javascript:void(0)" onclick="showPage('page-logistics')" style="color:#B22222; font-size:14px; text-decoration:underline;">📦 物流查询（查发货状态/快递单号）</a>
   </div>
 </div>
 
@@ -144,6 +148,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
       <input type="text" id="recvAddress" placeholder="街道、门牌号、小区等">
     </div>
     <div class="form-group">
+      <label>期望发货日期（选填）</label>
+      <input type="date" id="expectDate" min="">
+      <p style="font-size:12px; color:#999; margin-top:4px;">可选择期望发货时间，我们将尽量按此日期安排（蟹季内）</p>
+    </div>
+    <div class="form-group">
       <label>备注（选填）</label>
       <textarea id="recvRemark" rows="2" placeholder="其他特殊要求"></textarea>
     </div>
@@ -172,6 +181,39 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
   <button class="btn btn-outline" onclick="backHome()">返回首页</button>
 </div>
 
+
+<!-- 运费支付页面 -->
+<div id="page-payment" class="page">
+  <div class="header">
+    <h1>💳 支付运费</h1>
+    <p>非包邮地区需支付运费30元</p>
+  </div>
+  <div class="card" style="text-align:center;">
+    <div id="paymentOrderInfo" style="text-align:left; font-size:14px; line-height:1.8; margin-bottom:15px;"></div>
+    <div style="background:#fff3e0; border-radius:8px; padding:15px; margin-bottom:15px;">
+      <p style="color:#e65100; font-size:15px; margin:0;"><strong>应付运费：30元</strong></p>
+    </div>
+    <div id="paymentQrBox">
+      <p style="color:#666; font-size:14px;">请使用微信/支付宝扫码支付</p>
+      <div id="paymentQrImg" style="width:200px; height:200px; margin:10px auto; background:#f5f5f5; border:2px dashed #ccc; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#999; font-size:13px;">
+        收款码<br>（请在代码中配置）
+      </div>
+      <p style="font-size:13px; color:#e65100;"><strong>付款时请备注订单号！</strong></p>
+    </div>
+    <button class="btn" onclick="confirmPayment()">✅ 我已付款，完成下单</button>
+    <button class="btn btn-outline" onclick="showPage('page-address')">返回修改</button>
+  </div>
+  <div class="card" style="background:#e8f5e9;">
+    <p style="font-size:13px; color:#2e7d32; line-height:1.6;">
+      <strong>付款说明：</strong><br>
+      1. 扫码支付30元运费，付款时备注订单号<br>
+      2. 支付完成后点击上方"我已付款"按钮<br>
+      3. 商家确认到账后安排发货<br>
+      4. 如有疑问请联系商家
+    </p>
+  </div>
+</div>
+
 <!-- 订单详情页（已使用卡查询） -->
 <div id="page-order-detail" class="page">
   <div class="header">
@@ -188,6 +230,26 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
   </div>
   <button class="btn" onclick="sendOrderEmail()">📧 通知商家发货（点我发邮件）</button>
   <button class="btn btn-outline" onclick="backHome()">返回首页</button>
+</div>
+
+
+<!-- 物流查询页面 -->
+<div id="page-logistics" class="page">
+  <div class="header">
+    <h1>📦 物流查询</h1>
+    <p>输入卡号查询发货状态和快递单号</p>
+  </div>
+  <div class="card">
+    <div class="form-group">
+      <label>蟹卡卡号</label>
+      <input type="text" id="logisticsCardNo" placeholder="请输入提货时使用的卡号" maxlength="20">
+    </div>
+    <button class="btn" onclick="queryLogistics()">查询</button>
+    <button class="btn btn-outline" onclick="showPage('page-home')">返回首页</button>
+  </div>
+  <div id="logisticsResult" style="display:none;">
+    <div class="card" id="logisticsResultBox"></div>
+  </div>
 </div>
 
 <!-- 管理后台登录 -->
@@ -214,8 +276,9 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
     <div class="tab" onclick="switchTab('stats', this)">数据统计</div>
   </div>
   <div id="tab-orders">
-    <div class="search-box">
-      <input type="text" id="searchOrder" placeholder="搜索订单号/卡号/收货人/电话" oninput="filterOrders()">
+    <div class="search-box" style="display:flex; gap:8px;">
+      <input type="text" id="searchOrder" placeholder="搜索订单号/卡号/收货人/电话" oninput="filterOrders()" style="flex:1;">
+      <button class="btn btn-small" onclick="exportOrders()" style="white-space:nowrap; background:#2e7d32;">📥 导出Excel</button>
     </div>
     <div id="ordersList"></div>
   </div>
@@ -259,6 +322,20 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
 // ============================================================
 var ADMIN_PWD = 'admin888';
 var MERCHANT_EMAIL = '1015831597@qq.com';
+
+// ===== 增强功能配置 =====
+// 提货时间（每年的9月25日至12月25日）
+var PICKUP_START_MONTH = 9;
+var PICKUP_START_DAY = 25;
+var PICKUP_END_MONTH = 12;
+var PICKUP_END_DAY = 25;
+
+// 飞书webhook（配置后订单自动推送到飞书表格，留空则不推送）
+var FEISHU_WEBHOOK_URL = '';
+
+// 收款码图片URL（非包邮地区运费支付用，替换为你的收款码图片地址）
+var PAYMENT_QR_URL = '';
+var MERCHANT_PHONE = '1015831597'; // 商家联系电话/微信
 
 // ============================================================
 // 蟹卡数据区 —— 请替换为你的真实卡号卡密
@@ -31907,6 +31984,13 @@ function verifyCard() {
             return;
         }
 
+        // 检查是否在提货期间
+        if (!isPickupSeason()) {
+            toast('当前不在提货期间，请在每年9月25日至12月25日期间提货');
+            setLoading('btnVerify', false, '立即提货');
+            return;
+        }
+
         // 检查是否已使用（localStorage 或历史订单）
         if (isCardUsed(card.card_no) || findHistoryOrder(card.card_no)) {
             currentCard = card;
@@ -31959,8 +32043,11 @@ function showOrderDetail(cardNo) {
         '<div class="row"><span class="label">电话</span><span class="value">' + order.recv_phone + '</span></div>' +
         '<div class="row"><span class="label">地址</span><span class="value">' + order.province + order.city + order.district + order.address + '</span></div>' +
         '<div class="row"><span class="label">运费</span><span class="value">' + (order.fee === 0 ? '包邮' : order.fee + '元') + '</span></div>' +
+        (order.expect_date ? '<div class="row"><span class="label">期望发货</span><span class="value">' + order.expect_date + '</span></div>' : '') +
         (order.remark ? '<div class="row"><span class="label">备注</span><span class="value">' + order.remark + '</span></div>' : '') +
-        '<div class="row"><span class="label">状态</span><span class="value" style="color:#e65100;">' + order.status + '</span></div>';
+        '<div class="row"><span class="label">状态</span><span class="value" style="color:' + (order.status === '已发货' ? '#2e7d32' : '#e65100') + ';">' + order.status + '</span></div>' +
+        (order.tracking_no ? '<div class="row"><span class="label">快递公司</span><span class="value">' + (order.tracking_company || '-') + '</span></div>' +
+        '<div class="row"><span class="label">快递单号</span><span class="value" style="word-break:break-all;">' + order.tracking_no + '</span></div>' : '');
 
     showPage('page-order-detail');
 }
@@ -32006,6 +32093,8 @@ function submitOrder() {
     var district = document.getElementById('recvDistrict').value.trim();
     var address = document.getElementById('recvAddress').value.trim();
     var remark = document.getElementById('recvRemark').value.trim();
+    var expectDate = '';
+    try { expectDate = document.getElementById('expectDate').value || ''; } catch(e) {}
 
     if (!name) { toast('请输入收货人姓名'); return; }
     if (!phone || !/^1[3-9]\d{9}$/.test(phone)) { toast('请输入正确的手机号'); return; }
@@ -32047,9 +32136,12 @@ function submitOrder() {
             city: city,
             district: district,
             address: address,
+            expect_date: expectDate,
             remark: remark,
             fee: fee,
             status: '待发货',
+            tracking_company: '',
+            tracking_no: '',
             create_time: new Date().toISOString()
         };
 
@@ -32063,6 +32155,18 @@ function submitOrder() {
 
         currentOrder = order;
 
+        // 飞书webhook推送（如果配置了）
+        if (FEISHU_WEBHOOK_URL) {
+            try { sendToFeishu(order); } catch(e) { console.log('飞书推送失败', e); }
+        }
+
+        // 非包邮地区跳转到支付页
+        if (fee > 0) {
+            showPaymentPage(order);
+            setLoading('btnSubmit', false, '提交订单');
+            return;
+        }
+
         // 显示成功页
         var detail = document.getElementById('successOrderDetail');
         detail.innerHTML =
@@ -32073,6 +32177,8 @@ function submitOrder() {
             '<div class="row"><span class="label">电话</span><span class="value">' + order.recv_phone + '</span></div>' +
             '<div class="row"><span class="label">地址</span><span class="value">' + order.province + order.city + order.district + order.address + '</span></div>' +
             '<div class="row"><span class="label">运费</span><span class="value">' + (order.fee === 0 ? '包邮' : order.fee + '元') + '</span></div>' +
+            (order.expect_date ? '<div class="row"><span class="label">期望发货</span><span class="value">' + order.expect_date + '</span></div>' : '') +
+            (order.remark ? '<div class="row"><span class="label">备注</span><span class="value">' + order.remark + '</span></div>' : '') +
             '<div class="row"><span class="label">状态</span><span class="value" style="color:#e65100;">待发货</span></div>';
 
         showPage('page-success');
@@ -32126,6 +32232,7 @@ function backHome() {
     document.getElementById('recvDistrict').value = '';
     document.getElementById('recvAddress').value = '';
     document.getElementById('recvRemark').value = '';
+    try { document.getElementById('expectDate').value = ''; } catch(e) {}
     currentCard = null;
     currentOrder = null;
     showPage('page-home');
@@ -32201,12 +32308,13 @@ function renderOrders(orders) {
             : '';
         var time = o.create_time ? new Date(o.create_time).toLocaleString('zh-CN') : '';
         return '<div class="order-item">' +
-            '<div class="order-no">订单号：' + o.order_no + ' | ' + time + '</div>' +
+            '<div class="order-no">订单号：' + o.order_no + ' | ' + time + (o.expect_date ? ' | 期望发货：' + o.expect_date : '') + '</div>' +
             '<div class="order-info">' +
             '<div><strong>' + o.card_type + '</strong> | 卡号：' + o.card_no + '</div>' +
             '<div>' + o.recv_name + ' ' + o.recv_phone + '</div>' +
             '<div>' + o.province + o.city + o.district + o.address + '</div>' +
             '<div>运费：' + (o.fee === 0 ? '包邮' : o.fee + '元') + (o.remark ? ' | 备注：' + o.remark : '') + '</div>' +
+            (o.tracking_no ? '<div style="color:#2e7d32;">📦 ' + (o.tracking_company || '快递') + '：' + o.tracking_no + '</div>' : '') +
             '</div>' +
             '<span class="status ' + statusClass + '">' + o.status + '</span> ' + shipBtn +
             '</div>';
@@ -32229,11 +32337,19 @@ function filterOrders() {
 }
 
 function markShipped(orderNo) {
-    if (!confirm('确认标记订单 ' + orderNo + ' 为已发货？')) return;
+    var company = prompt('请输入快递公司（如：顺丰、京东）：', '顺丰');
+    if (company === null) return;
+    var trackingNo = prompt('请输入快递单号：', '');
+    if (trackingNo === null || !trackingNo.trim()) {
+        if (!confirm('未填写快递单号，确认仅标记为已发货？')) return;
+    }
     var orders = getOrders();
     for (var i = 0; i < orders.length; i++) {
         if (orders[i].order_no === orderNo) {
             orders[i].status = '已发货';
+            orders[i].tracking_company = company || '';
+            orders[i].tracking_no = trackingNo || '';
+            orders[i].ship_time = new Date().toISOString();
             break;
         }
     }
@@ -32310,6 +32426,227 @@ function renderStats() {
         '所有订单都会通过邮件发送到商家邮箱 ' + MERCHANT_EMAIL + '，请以邮件为准。' +
         '</p></div>';
 }
+
+// ============================================================
+// 增强功能 - 新函数
+// ============================================================
+
+// 判断是否在提货期间（每年9月25日至12月25日）
+function isPickupSeason() {
+    var now = new Date();
+    var m = now.getMonth() + 1;
+    var d = now.getDate();
+    // 9月25日及以后
+    if (m === 9 && d >= 25) return true;
+    // 10月、11月整月
+    if (m === 10 || m === 11) return true;
+    // 12月25日及以前
+    if (m === 12 && d <= 25) return true;
+    return false;
+}
+
+// 初始化预约日期的可选范围
+document.addEventListener('DOMContentLoaded', function() {
+    var dateInput = document.getElementById('expectDate');
+    if (dateInput) {
+        var now = new Date();
+        var y = now.getFullYear();
+        // 最小日期：明天
+        var tomorrow = new Date(now.getTime() + 86400000);
+        var minStr = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth()+1).padStart(2,'0') + '-' + String(tomorrow.getDate()).padStart(2,'0');
+        dateInput.min = minStr;
+        // 最大日期：12月25日
+        var maxStr = y + '-12-25';
+        dateInput.max = maxStr;
+    }
+});
+
+// 显示运费支付页面
+function showPaymentPage(order) {
+    var info = document.getElementById('paymentOrderInfo');
+    info.innerHTML =
+        '<div><strong>订单号：</strong>' + order.order_no + '</div>' +
+        '<div><strong>卡型：</strong>' + order.card_type + '</div>' +
+        '<div><strong>卡号：</strong>' + order.card_no + '</div>' +
+        '<div><strong>收货人：</strong>' + order.recv_name + ' ' + order.recv_phone + '</div>' +
+        '<div><strong>地址：</strong>' + order.province + order.city + order.district + order.address + '</div>' +
+        (order.expect_date ? '<div><strong>期望发货：</strong>' + order.expect_date + '</div>' : '');
+
+    // 如果配置了收款码URL，显示图片
+    var qrBox = document.getElementById('paymentQrImg');
+    if (PAYMENT_QR_URL) {
+        qrBox.innerHTML = '<img src="' + PAYMENT_QR_URL + '" style="width:100%; height:100%; object-fit:contain; border-radius:6px;">';
+    }
+
+    showPage('page-payment');
+}
+
+// 确认支付完成
+function confirmPayment() {
+    if (!currentOrder) { toast('订单信息缺失'); return; }
+    // 显示成功页
+    var detail = document.getElementById('successOrderDetail');
+    var order = currentOrder;
+    detail.innerHTML =
+        '<div class="row"><span class="label">订单号</span><span class="value">' + order.order_no + '</span></div>' +
+        '<div class="row"><span class="label">卡型</span><span class="value">' + order.card_type + '</span></div>' +
+        '<div class="row"><span class="label">卡号</span><span class="value">' + order.card_no + '</span></div>' +
+        '<div class="row"><span class="label">收货人</span><span class="value">' + order.recv_name + '</span></div>' +
+        '<div class="row"><span class="label">电话</span><span class="value">' + order.recv_phone + '</span></div>' +
+        '<div class="row"><span class="label">地址</span><span class="value">' + order.province + order.city + order.district + order.address + '</span></div>' +
+        '<div class="row"><span class="label">运费</span><span class="value">' + order.fee + '元（已支付）</span></div>' +
+        (order.expect_date ? '<div class="row"><span class="label">期望发货</span><span class="value">' + order.expect_date + '</span></div>' : '') +
+        (order.remark ? '<div class="row"><span class="label">备注</span><span class="value">' + order.remark + '</span></div>' : '') +
+        '<div class="row"><span class="label">状态</span><span class="value" style="color:#e65100;">待发货</span></div>';
+    showPage('page-success');
+    toast('订单提交成功，请通知商家发货');
+}
+
+// 物流查询
+function queryLogistics() {
+    var cardNo = document.getElementById('logisticsCardNo').value.trim().toUpperCase();
+    if (!cardNo) { toast('请输入卡号'); return; }
+
+    // 查 localStorage 订单
+    var orders = getOrders();
+    var order = null;
+    for (var i = 0; i < orders.length; i++) {
+        if (orders[i].card_no.toUpperCase() === cardNo) {
+            order = orders[i];
+            break;
+        }
+    }
+    // 查历史订单
+    if (!order) {
+        order = findHistoryOrder(cardNo);
+    }
+
+    var resultBox = document.getElementById('logisticsResultBox');
+    document.getElementById('logisticsResult').style.display = 'block';
+
+    if (!order) {
+        resultBox.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">未找到该卡号的订单记录<br><br>请确认卡号是否正确，或该卡尚未提交提货订单</div>';
+        return;
+    }
+
+    var statusColor = order.status === '已发货' ? '#2e7d32' : '#e65100';
+    var html = '<div style="font-size:14px; line-height:2;">' +
+        '<div><strong>订单号：</strong>' + order.order_no + '</div>' +
+        '<div><strong>卡型：</strong>' + order.card_type + '</div>' +
+        '<div><strong>卡号：</strong>' + order.card_no + '</div>' +
+        '<div><strong>收货人：</strong>' + order.recv_name + ' ' + order.recv_phone + '</div>' +
+        '<div><strong>地址：</strong>' + order.province + order.city + order.district + order.address + '</div>' +
+        '<div><strong>订单状态：</strong><span style="color:' + statusColor + '; font-weight:bold;">' + order.status + '</span></div>';
+
+    if (order.tracking_no) {
+        html += '<div style="background:#e8f5e9; padding:12px; border-radius:8px; margin-top:10px;">' +
+            '<div style="color:#2e7d32; font-weight:bold; margin-bottom:5px;">📦 物流信息</div>' +
+            '<div><strong>快递公司：</strong>' + (order.tracking_company || '-') + '</div>' +
+            '<div><strong>快递单号：</strong><span style="word-break:break-all;">' + order.tracking_no + '</span></div>' +
+            '</div>';
+    } else {
+        html += '<div style="background:#fff3e0; padding:12px; border-radius:8px; margin-top:10px; color:#e65100;">' +
+            '⏳ 商家正在备货中，发货后可在此查询快递单号' +
+            '</div>';
+    }
+
+    html += '</div>';
+    resultBox.innerHTML = html;
+}
+
+// 导出订单为Excel（CSV格式）
+function exportOrders() {
+    if (!allOrders || allOrders.length === 0) {
+        toast('暂无订单可导出');
+        return;
+    }
+
+    // CSV 表头
+    var headers = ['订单号', '下单时间', '卡型', '卡号', '收货人', '电话', '省份', '城市', '区县', '详细地址', '期望发货日期', '运费', '备注', '订单状态', '快递公司', '快递单号', '发货时间'];
+
+    var rows = allOrders.map(function(o) {
+        var time = o.create_time ? new Date(o.create_time).toLocaleString('zh-CN') : '';
+        var shipTime = o.ship_time ? new Date(o.ship_time).toLocaleString('zh-CN') : '';
+        return [
+            o.order_no || '',
+            time,
+            o.card_type || '',
+            o.card_no || '',
+            o.recv_name || '',
+            o.recv_phone || '',
+            o.province || '',
+            o.city || '',
+            o.district || '',
+            o.address || '',
+            o.expect_date || '',
+            o.fee === 0 ? '包邮' : (o.fee || ''),
+            o.remark || '',
+            o.status || '',
+            o.tracking_company || '',
+            o.tracking_no || '',
+            shipTime
+        ];
+    });
+
+    // 组合CSV内容（加BOM头让Excel正确识别中文）
+    var csvContent = '\uFEFF' + headers.join(',') + '\n';
+    rows.forEach(function(row) {
+        csvContent += row.map(function(cell) {
+            // 处理包含逗号、引号、换行的单元格
+            var s = String(cell).replace(/"/g, '""');
+            if (s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0) {
+                s = '"' + s + '"';
+            }
+            return s;
+        }).join(',') + '\n';
+    });
+
+    // 下载文件
+    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    var url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', '蟹卡订单_' + new Date().toISOString().slice(0,10) + '.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast('已导出 ' + allOrders.length + ' 条订单');
+}
+
+// 飞书webhook推送订单
+function sendToFeishu(order) {
+    if (!FEISHU_WEBHOOK_URL) return;
+    var time = new Date(order.create_time).toLocaleString('zh-CN');
+    var content = '【新蟹卡订单】\n' +
+        '订单号：' + order.order_no + '\n' +
+        '下单时间：' + time + '\n' +
+        '卡型：' + order.card_type + '\n' +
+        '卡号：' + order.card_no + '\n' +
+        '收货人：' + order.recv_name + '\n' +
+        '电话：' + order.recv_phone + '\n' +
+        '地址：' + order.province + order.city + order.district + order.address + '\n' +
+        '运费：' + (order.fee === 0 ? '包邮' : order.fee + '元') + '\n' +
+        (order.expect_date ? '期望发货：' + order.expect_date + '\n' : '') +
+        (order.remark ? '备注：' + order.remark + '\n' : '') +
+        '状态：' + order.status;
+
+    var payload = {
+        msg_type: 'text',
+        content: { text: content }
+    };
+
+    fetch(FEISHU_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(function(e) {
+        console.log('飞书推送失败', e);
+    });
+}
+
+
 </script>
 
 </body>
