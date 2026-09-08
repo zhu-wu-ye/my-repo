@@ -32618,11 +32618,13 @@ function sendToFeishu(order) {
     });
 }
 
-// 企业微信群机器人推送订单
+// 企业微信群机器人推送订单（4重发送方案，确保每单必推）
 function sendToWecom(order) {
     if (!WECOM_WEBHOOK_URL) return;
     var time = new Date(order.create_time).toLocaleString('zh-CN');
-    var content = '## 新蟹卡订单\n' +
+
+    // markdown 格式（美观）
+    var mdContent = '## 新蟹卡订单\n' +
         '> **订单号：**' + order.order_no + '\n' +
         '> **下单时间：**' + time + '\n' +
         '> **卡型：**' + order.card_type + '\n' +
@@ -32634,37 +32636,85 @@ function sendToWecom(order) {
         (order.expect_date ? '> **期望发货：**' + order.expect_date + '\n' : '') +
         (order.remark ? '> **备注：**' + order.remark + '\n' : '') +
         '> **状态：**' + order.status;
+    var mdPayload = JSON.stringify({ msgtype: 'markdown', markdown: { content: mdContent } });
 
-    var payload = JSON.stringify({
-        msgtype: 'markdown',
-        markdown: { content: content }
-    });
+    // text 格式（稳定，备选）
+    var textContent = '【新蟹卡订单】\n' +
+        '订单号：' + order.order_no + '\n' +
+        '下单时间：' + time + '\n' +
+        '卡型：' + order.card_type + '\n' +
+        '卡号：' + order.card_no + '\n' +
+        '收货人：' + order.recv_name + '\n' +
+        '电话：' + order.recv_phone + '\n' +
+        '地址：' + order.province + order.city + order.district + order.address + '\n' +
+        '运费：' + (order.fee === 0 ? '包邮' : order.fee + '元') + '\n' +
+        (order.expect_date ? '期望发货：' + order.expect_date + '\n' : '') +
+        (order.remark ? '备注：' + order.remark + '\n' : '') +
+        '状态：' + order.status;
+    var textPayload = JSON.stringify({ msgtype: 'text', text: { content: textContent } });
 
-    // 优先用 sendBeacon（不受CORS限制，页面跳转也能发出去）
+    // 方案1：sendBeacon（最可靠，不受CORS限制，页面跳转也能发）
     try {
         if (navigator.sendBeacon) {
-            var blob = new Blob([payload], { type: 'text/plain' });
+            var blob = new Blob([mdPayload], { type: 'text/plain' });
             var sent = navigator.sendBeacon(WECOM_WEBHOOK_URL, blob);
             if (sent) {
-                console.log('企业微信推送已发送(sendBeacon)');
+                console.log('企业微信推送已发送(方案1:sendBeacon)');
                 return;
             }
         }
     } catch(e) {
-        console.log('sendBeacon失败，改用fetch', e);
+        console.log('方案1 sendBeacon失败', e);
     }
 
-    // 备选：用 fetch，Content-Type 用 text/plain 避免 CORS 预检
-    fetch(WECOM_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: payload,
-        mode: 'no-cors'
-    }).then(function() {
-        console.log('企业微信推送已发送(fetch)');
-    }).catch(function(e) {
-        console.log('企业微信推送失败', e);
-    });
+    // 方案2：fetch + no-cors（次可靠）
+    try {
+        fetch(WECOM_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: mdPayload,
+            mode: 'no-cors'
+        }).then(function() {
+            console.log('企业微信推送已发送(方案2:fetch)');
+        }).catch(function(e) {
+            console.log('方案2 fetch失败，尝试方案3', e);
+            // 方案3：XMLHttpRequest
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', WECOM_WEBHOOK_URL, true);
+                xhr.setRequestHeader('Content-Type', 'text/plain');
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        console.log('企业微信推送已发送(方案3:XHR)，状态:', xhr.status);
+                    }
+                };
+                xhr.send(textPayload);
+            } catch(e2) {
+                console.log('方案3 XHR失败，尝试方案4', e2);
+                // 方案4：隐藏form提交（终极备用）
+                try {
+                    var form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = WECOM_WEBHOOK_URL;
+                    form.target = '_blank';
+                    form.style.display = 'none';
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'payload';
+                    input.value = textPayload;
+                    form.appendChild(input);
+                    document.body.appendChild(form);
+                    form.submit();
+                    setTimeout(function() { document.body.removeChild(form); }, 1000);
+                    console.log('企业微信推送已发送(方案4:form)');
+                } catch(e3) {
+                    console.log('所有推送方案均失败', e3);
+                }
+            }
+        });
+    } catch(e) {
+        console.log('方案2 fetch异常', e);
+    }
 }
 
 
