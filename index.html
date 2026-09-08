@@ -278,6 +278,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
       <input type="text" id="searchOrder" placeholder="搜索订单号/卡号/收货人/电话" oninput="filterOrders()" style="flex:1;">
       <button class="btn btn-small" onclick="exportOrders()" style="white-space:nowrap; background:#2e7d32;">📥 导出Excel</button>
     </div>
+    <div id="localOrderCount" style="font-size:12px; color:#999; padding:5px 10px;"></div>
     <div id="ordersList"></div>
   </div>
   <div id="tab-cards" style="display:none;">
@@ -292,7 +293,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
 </div>
 
 <div class="toast" id="toast"></div>
-<div class="footer-link"><a href="javascript:void(0)" onclick="showPage('page-admin-login')">管理入口</a></div>
+<div class="footer-link">
+  <a href="javascript:void(0)" onclick="showPage('page-admin-login')">管理入口</a>
+  <span style="margin:0 8px; color:#ddd;">|</span>
+  <span id="versionInfo" style="color:#bbb;">v2.0 2026-09-08</span>
+</div>
 
 <script>
 // ============================================================
@@ -32236,6 +32241,11 @@ function loadAdminData() {
         return new Date(b.create_time) - new Date(a.create_time);
     });
     allOrders = merged;
+    // 显示本地订单数量
+    var countEl = document.getElementById('localOrderCount');
+    if (countEl) {
+        countEl.textContent = '本地订单：' + localOrders.length + ' 条 | 历史订单：' + HISTORY_ORDERS.length + ' 条 | 合计：' + merged.length + ' 条';
+    }
     renderOrders(allOrders);
     renderCards();
     renderStats();
