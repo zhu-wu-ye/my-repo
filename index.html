@@ -96,7 +96,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
       1. 提货时间：每年 <strong>9月25日至12月25日</strong><br>
       2. 请准确输入卡号和密码<br>
       3. 江浙沪皖地区包邮，其他地区运费30元<br>
-      4. 偏远地区（新疆、西藏、青海、内蒙古、甘肃、宁夏、海南）暂不发货<br>
+      4. 偏远地区（新疆、西藏、青海、内蒙古、甘肃、宁夏）暂不发货<br>
       5. 每张卡仅限使用一次，提交后不可重复提货
     </p>
   </div>
@@ -326,9 +326,9 @@ var MERCHANT_EMAIL = '1015831597@qq.com';
 // ===== 增强功能配置 =====
 // 提货时间（每年的9月25日至12月25日）
 var PICKUP_START_MONTH = 9;
-var PICKUP_START_DAY = 25;
+var PICKUP_START_DAY = 1;
 var PICKUP_END_MONTH = 12;
-var PICKUP_END_DAY = 25;
+var PICKUP_END_DAY = 28;
 
 // 飞书webhook（配置后订单自动推送到飞书表格，留空则不推送）
 var FEISHU_WEBHOOK_URL = '';
@@ -32055,7 +32055,7 @@ function showOrderDetail(cardNo) {
 function calcFee() {
     var province = document.getElementById('recvProvince').value.trim();
     var freeList = ['江苏','浙江','上海','安徽','江苏省','浙江省','上海市','安徽省'];
-    var remoteList = ['新疆','西藏','青海','内蒙古','甘肃','宁夏','海南','新疆维吾尔','西藏自治区','青海省','内蒙古自治区','甘肃省','宁夏回族','海南省'];
+    var remoteList = ['新疆','西藏','青海','内蒙古','甘肃','宁夏','新疆维吾尔','西藏自治区','青海省','内蒙古自治区','甘肃省','宁夏回族'];
     var isRemote = false;
     for (var i = 0; i < remoteList.length; i++) {
         if (province.indexOf(remoteList[i]) >= 0) { isRemote = true; break; }
@@ -32101,7 +32101,7 @@ function submitOrder() {
     if (!province || !city || !district || !address) { toast('请填写完整的收货地址'); return; }
 
     // 检查偏远地区
-    var remoteList = ['新疆','西藏','青海','内蒙古','甘肃','宁夏','海南'];
+    var remoteList = ['新疆','西藏','青海','内蒙古','甘肃','宁夏'];
     for (var i = 0; i < remoteList.length; i++) {
         if (province.indexOf(remoteList[i]) >= 0) { toast('该地区暂不发货，请联系客服'); return; }
     }
