@@ -149,9 +149,19 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
     </div>
     <div class="form-group">
       <label>期望发货日期（选填）</label>
-      <input type="date" id="expectDate" min="">
-      <p style="font-size:12px; color:#999; margin-top:4px;">可选择期望发货时间，我们将尽量按此日期安排（蟹季内）</p>
+      <input type="date" id="expectDate" min="2026-09-25" max="2026-12-25">
+      <p style="font-size:12px; color:#999; margin-top:4px;">提货期为每年9月25日至12月25日，仅可选择此期间内日期</p>
     </div>
+    <script>
+    (function() {
+        var d = document.getElementById('expectDate');
+        if (d) {
+            var y = new Date().getFullYear();
+            d.min = y + '-09-25';
+            d.max = y + '-12-25';
+        }
+    })();
+    </script>
     <div class="form-group">
       <label>备注（选填）</label>
       <textarea id="recvRemark" rows="2" placeholder="其他特殊要求"></textarea>
