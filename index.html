@@ -31986,7 +31986,7 @@ function verifyCard() {
 
         // 检查是否在提货期间
         if (!isPickupSeason()) {
-            toast('当前不在提货期间，请在每年9月25日至12月25日期间提货');
+            toast('当前不在提货期间，请在每年' + PICKUP_START_MONTH + '月' + PICKUP_START_DAY + '日至' + PICKUP_END_MONTH + '月' + PICKUP_END_DAY + '日期间提货');
             setLoading('btnVerify', false, '立即提货');
             return;
         }
@@ -32436,13 +32436,17 @@ function isPickupSeason() {
     var now = new Date();
     var m = now.getMonth() + 1;
     var d = now.getDate();
-    // 9月25日及以后
-    if (m === 9 && d >= 25) return true;
-    // 10月、11月整月
-    if (m === 10 || m === 11) return true;
-    // 12月25日及以前
-    if (m === 12 && d <= 25) return true;
-    return false;
+    var sm = PICKUP_START_MONTH, sd = PICKUP_START_DAY;
+    var em = PICKUP_END_MONTH, ed = PICKUP_END_DAY;
+    // 开始月份之前
+    if (m < sm) return false;
+    // 结束月份之后
+    if (m > em) return false;
+    // 等于开始月份，日期需 >= 开始日
+    if (m === sm && d < sd) return false;
+    // 等于结束月份，日期需 <= 结束日
+    if (m === em && d > ed) return false;
+    return true;
 }
 
 // 初始化预约日期的可选范围
