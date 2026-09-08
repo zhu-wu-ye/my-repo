@@ -32096,6 +32096,21 @@ function submitOrder() {
     if (!phone || !/^1[3-9]\d{9}$/.test(phone)) { toast('请输入正确的手机号'); return; }
     if (!province || !city || !district || !address) { toast('请填写完整的收货地址'); return; }
 
+    // 验证期望发货日期必须在9月25日至12月25日之间
+    if (expectDate) {
+        var ed = new Date(expectDate);
+        var em = ed.getMonth() + 1;
+        var eday = ed.getDate();
+        var isValid = false;
+        if (em === 9 && eday >= 25) isValid = true;
+        else if (em === 10 || em === 11) isValid = true;
+        else if (em === 12 && eday <= 25) isValid = true;
+        if (!isValid) {
+            toast('期望发货日期只能选择9月25日至12月25日之间');
+            return;
+        }
+    }
+
     // 检查偏远地区
     var remoteList = ['新疆','西藏','青海','内蒙古','甘肃','宁夏'];
     for (var i = 0; i < remoteList.length; i++) {
