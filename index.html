@@ -32408,15 +32408,14 @@ function isPickupSeason() {
     return true;
 }
 
-// 初始化预约日期的可选范围
+// 初始化预约日期的可选范围（9月25日至12月25日）
 document.addEventListener('DOMContentLoaded', function() {
     var dateInput = document.getElementById('expectDate');
     if (dateInput) {
         var now = new Date();
         var y = now.getFullYear();
-        // 最小日期：明天
-        var tomorrow = new Date(now.getTime() + 86400000);
-        var minStr = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth()+1).padStart(2,'0') + '-' + String(tomorrow.getDate()).padStart(2,'0');
+        // 最小日期：9月25日
+        var minStr = y + '-09-25';
         dateInput.min = minStr;
         // 最大日期：12月25日
         var maxStr = y + '-12-25';
