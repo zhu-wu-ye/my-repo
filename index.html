@@ -330,8 +330,11 @@ var PICKUP_START_DAY = 1;
 var PICKUP_END_MONTH = 12;
 var PICKUP_END_DAY = 28;
 
-// 飞书webhook（配置后订单自动推送到飞书表格，留空则不推送）
+// 飞书webhook（配置后订单自动推送到飞书，留空则不推送）
 var FEISHU_WEBHOOK_URL = '';
+
+// 企业微信群机器人webhook（配置后订单自动推送到企业微信群，消息同步到微信）
+var WECOM_WEBHOOK_URL = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=8eeb3c1d-8493-4107-be01-6341d81115a3';
 
 // 收款码图片URL（非包邮地区运费支付用，替换为你的收款码图片地址）
 var PAYMENT_QR_URL = 'https://aka.doubaocdn.com/s/YJ7s7JEGUQ';
@@ -32160,6 +32163,11 @@ function submitOrder() {
             try { sendToFeishu(order); } catch(e) { console.log('飞书推送失败', e); }
         }
 
+        // 企业微信推送（如果配置了）
+        if (WECOM_WEBHOOK_URL) {
+            try { sendToWecom(order); } catch(e) { console.log('企业微信推送失败', e); }
+        }
+
         // 非包邮地区跳转到支付页
         if (fee > 0) {
             showPaymentPage(order);
@@ -32647,6 +32655,37 @@ function sendToFeishu(order) {
         body: JSON.stringify(payload)
     }).catch(function(e) {
         console.log('飞书推送失败', e);
+    });
+}
+
+// 企业微信群机器人推送订单
+function sendToWecom(order) {
+    if (!WECOM_WEBHOOK_URL) return;
+    var time = new Date(order.create_time).toLocaleString('zh-CN');
+    var content = '## 🦀 新蟹卡订单\n' +
+        '> **订单号：**' + order.order_no + '\n' +
+        '> **下单时间：**' + time + '\n' +
+        '> **卡型：**' + order.card_type + '\n' +
+        '> **卡号：**' + order.card_no + '\n' +
+        '> **收货人：**' + order.recv_name + '\n' +
+        '> **电话：**' + order.recv_phone + '\n' +
+        '> **地址：**' + order.province + order.city + order.district + order.address + '\n' +
+        '> **运费：**' + (order.fee === 0 ? '包邮' : order.fee + '元') + '\n' +
+        (order.expect_date ? '> **期望发货：**' + order.expect_date + '\n' : '') +
+        (order.remark ? '> **备注：**' + order.remark + '\n' : '') +
+        '> **状态：**' + order.status;
+
+    var payload = {
+        msgtype: 'markdown',
+        markdown: { content: content }
+    };
+
+    fetch(WECOM_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(function(e) {
+        console.log('企业微信推送失败', e);
     });
 }
 
