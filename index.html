@@ -172,13 +172,12 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
   <div class="card">
     <div class="order-detail" id="successOrderDetail"></div>
   </div>
-  <div style="background:#fff3e0; border:2px solid #ff9800; border-radius:8px; padding:15px; margin-bottom:15px; font-size:14px; color:#e65100; line-height:1.8;">
-    <strong>⚠️ 重要：请务必点击下方按钮通知商家！</strong><br>
-    点击后会自动打开邮件，点「发送」即可通知商家发货<br>
-    不通知商家可能导致发货延迟
+  <div style="background:#e8f5e9; border:2px solid #4caf50; border-radius:8px; padding:15px; margin-bottom:15px; font-size:14px; color:#2e7d32; line-height:1.8;">
+    <strong>✅ 订单已提交成功！</strong><br>
+    商家已收到微信通知，将尽快为您安排发货<br>
+    可在首页「物流查询」输入卡号查看发货状态
   </div>
-  <button class="btn" onclick="sendOrderEmail()">📧 通知商家发货（点我发邮件）</button>
-  <button class="btn btn-outline" onclick="backHome()">返回首页</button>
+  <button class="btn" onclick="backHome()">返回首页</button>
 </div>
 
 
@@ -223,13 +222,12 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
   <div class="card">
     <div class="order-detail" id="orderDetailBox"></div>
   </div>
-  <div style="background:#fff3e0; border:2px solid #ff9800; border-radius:8px; padding:15px; margin-bottom:15px; font-size:14px; color:#e65100; line-height:1.8;">
-    <strong>⚠️ 如尚未通知商家，请点击下方按钮！</strong><br>
-    点击后会自动打开邮件，点「发送」即可通知商家发货<br>
-    不通知商家可能导致发货延迟
+  <div style="background:#e8f5e9; border:2px solid #4caf50; border-radius:8px; padding:15px; margin-bottom:15px; font-size:14px; color:#2e7d32; line-height:1.8;">
+    <strong>✅ 商家已收到订单通知</strong><br>
+    将尽快为您安排发货<br>
+    可在首页「物流查询」输入卡号查看发货状态
   </div>
-  <button class="btn" onclick="sendOrderEmail()">📧 通知商家发货（点我发邮件）</button>
-  <button class="btn btn-outline" onclick="backHome()">返回首页</button>
+  <button class="btn" onclick="backHome()">返回首页</button>
 </div>
 
 
@@ -295,26 +293,6 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
 
 <div class="toast" id="toast"></div>
 <div class="footer-link"><a href="javascript:void(0)" onclick="showPage('page-admin-login')">管理入口</a></div>
-
-<!-- 微信环境引导层 -->
-<div class="wechat-mask" id="wechatMask" onclick="closeWechatMask()">
-  <div class="arrow"></div>
-  <div class="tip-box">
-    <h3>📱 请在浏览器中打开</h3>
-    <p>微信内无法直接发送邮件通知商家</p>
-    <div class="step">
-      <strong>第一步：</strong>点击右上角 <strong>「···」</strong> 菜单按钮
-    </div>
-    <div class="step">
-      <strong>第二步：</strong>选择 <strong>「在浏览器打开」</strong>
-    </div>
-    <div class="step">
-      <strong>第三步：</strong>在浏览器中点击「通知商家发货」即可发送邮件
-    </div>
-    <p style="font-size:13px; color:#ccc; margin-top:15px;">订单已提交成功，商家也可在管理后台查看</p>
-    <button class="close-btn">我知道了</button>
-  </div>
-</div>
 
 <script>
 // ============================================================
@@ -32194,42 +32172,6 @@ function submitOrder() {
     }, 800);
 }
 
-function isWeChat() {
-    return /MicroMessenger/i.test(navigator.userAgent);
-}
-
-function showWechatMask() {
-    document.getElementById('wechatMask').classList.add('show');
-}
-
-function closeWechatMask() {
-    document.getElementById('wechatMask').classList.remove('show');
-}
-
-function sendOrderEmail() {
-    if (!currentOrder) { toast('订单信息缺失'); return; }
-
-    // 微信环境下显示引导层
-    if (isWeChat()) {
-        showWechatMask();
-        return;
-    }
-
-    var subject = encodeURIComponent('【蟹卡提货】新订单 ' + currentOrder.order_no);
-    var body = encodeURIComponent(
-        '订单号：' + currentOrder.order_no + '\n' +
-        '卡型：' + currentOrder.card_type + '\n' +
-        '卡号：' + currentOrder.card_no + '\n' +
-        '收货人：' + currentOrder.recv_name + '\n' +
-        '电话：' + currentOrder.recv_phone + '\n' +
-        '地址：' + currentOrder.province + currentOrder.city + currentOrder.district + currentOrder.address + '\n' +
-        '运费：' + (currentOrder.fee === 0 ? '包邮' : currentOrder.fee + '元') + '\n' +
-        '备注：' + (currentOrder.remark || '无')
-    );
-    window.location.href = 'mailto:' + MERCHANT_EMAIL + '?subject=' + subject + '&body=' + body;
-    toast('已打开邮件客户端');
-}
-
 function backHome() {
     document.getElementById('cardNo').value = '';
     document.getElementById('cardPwd').value = '';
@@ -32427,11 +32369,10 @@ function renderStats() {
         '<div><div class="num" style="color:#ff9800;">' + pendingCount + '</div><div class="lbl">待发货</div></div>' +
         '<div><div class="num" style="color:#1565c0;">' + shippedCount + '</div><div class="lbl">已发货</div></div>' +
         '</div></div></div>' +
-        '<div class="card" style="background:#fff8e1;">' +
-        '<p style="font-size:12px; color:#e65100; line-height:1.6;">' +
-        '<strong>⚠️ 注意：</strong>纯前端版本的订单数据存储在客户浏览器的 localStorage 中。' +
-        '管理后台只能查看在当前设备/浏览器上提交的订单。' +
-        '所有订单都会通过邮件发送到商家邮箱 ' + MERCHANT_EMAIL + '，请以邮件为准。' +
+        '<div class="card" style="background:#e8f5e9;">' +
+        '<p style="font-size:12px; color:#2e7d32; line-height:1.6;">' +
+        '<strong>✅ 说明：</strong>纯前端版本的订单数据存储在浏览器本地。' +
+        '所有新订单都会自动推送到企业微信群（微信同步通知），请以企业微信消息为准。' +
         '</p></div>';
 }
 
@@ -32511,7 +32452,7 @@ function confirmPayment() {
         (order.remark ? '<div class="row"><span class="label">备注</span><span class="value">' + order.remark + '</span></div>' : '') +
         '<div class="row"><span class="label">状态</span><span class="value" style="color:#e65100;">待发货</span></div>';
     showPage('page-success');
-    toast('订单提交成功，请通知商家发货');
+    toast('订单提交成功，商家已收到通知');
 }
 
 // 物流查询
