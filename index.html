@@ -284,9 +284,22 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
     <div class="tab" onclick="switchTab('stats', this)">数据统计</div>
   </div>
   <div id="tab-orders">
-    <div class="search-box" style="display:flex; gap:8px;">
-      <input type="text" id="searchOrder" placeholder="搜索订单号/卡号/收货人/电话" oninput="filterOrders()" style="flex:1;">
-      <button class="btn btn-small" onclick="exportOrders()" style="white-space:nowrap; background:#2e7d32;">📥 导出Excel</button>
+    <div class="search-box" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <input type="text" id="searchOrder" placeholder="搜索订单号/卡号/收货人/电话" oninput="filterOrders()" style="flex:1; min-width:200px;">
+      <button class="btn btn-small" onclick="showImportDialog()" style="white-space:nowrap; background:#1565c0;">📥 导入订单</button>
+      <button class="btn btn-small" onclick="exportOrders()" style="white-space:nowrap; background:#2e7d32;">📊 导出Excel</button>
+    </div>
+    <!-- 导入订单弹窗 -->
+    <div id="importDialog" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+      <div style="background:#fff; padding:20px; border-radius:10px; width:90%; max-width:500px; max-height:80vh; overflow-y:auto;">
+        <h3 style="margin-top:0;">📥 导入订单</h3>
+        <p style="font-size:13px; color:#666;">从企业微信推送消息中复制"订单数据"部分的JSON，粘贴到下方：</p>
+        <textarea id="importJsonInput" style="width:100%; height:150px; padding:10px; border:1px solid #ddd; border-radius:5px; font-size:12px; font-family:monospace; box-sizing:border-box;" placeholder='{"order_no":"TX...","card_no":"ZXJ...","card_type":"1088型",...}'></textarea>
+        <div style="margin-top:15px; display:flex; gap:10px; justify-content:flex-end;">
+          <button class="btn btn-small" onclick="hideImportDialog()" style="background:#999;">取消</button>
+          <button class="btn btn-small" onclick="doImportOrder()" style="background:#1565c0;">确认导入</button>
+        </div>
+      </div>
     </div>
     <div id="localOrderCount" style="font-size:12px; color:#999; padding:5px 10px;"></div>
     <div id="ordersList"></div>
@@ -32541,6 +32554,67 @@ function queryLogistics() {
     resultBox.innerHTML = html;
 }
 
+// 显示导入订单弹窗
+function showImportDialog() {
+    var dlg = document.getElementById('importDialog');
+    dlg.style.display = 'flex';
+    dlg.style.alignItems = 'center';
+    dlg.style.justifyContent = 'center';
+    document.getElementById('importJsonInput').value = '';
+    setTimeout(function(){ document.getElementById('importJsonInput').focus(); }, 100);
+}
+
+// 隐藏导入订单弹窗
+function hideImportDialog() {
+    document.getElementById('importDialog').style.display = 'none';
+}
+
+// 执行导入订单
+function doImportOrder() {
+    var jsonStr = document.getElementById('importJsonInput').value.trim();
+    if (!jsonStr) {
+        toast('请粘贴订单JSON数据');
+        return;
+    }
+
+    try {
+        var order = JSON.parse(jsonStr);
+        // 验证必要字段
+        if (!order.order_no || !order.card_no || !order.recv_name || !order.recv_phone) {
+            toast('订单数据不完整，缺少必要字段');
+            return;
+        }
+
+        // 检查是否已存在
+        var existing = getOrders();
+        var exists = existing.some(function(o) { return o.order_no === order.order_no; });
+        if (exists) {
+            if (!confirm('订单号 ' + order.order_no + ' 已存在，是否覆盖？')) {
+                return;
+            }
+            // 删除旧订单
+            existing = existing.filter(function(o) { return o.order_no !== order.order_no; });
+        }
+
+        // 确保状态字段存在
+        if (!order.status) order.status = '待发货';
+        if (!order.create_time) order.create_time = new Date().toISOString();
+
+        // 添加订单
+        existing.push(order);
+        saveOrders(existing);
+
+        // 刷新后台显示
+        loadAdminData();
+
+        hideImportDialog();
+        toast('订单导入成功！共 ' + existing.length + ' 条订单');
+    } catch(e) {
+        toast('JSON格式错误，请检查数据：' + e.message);
+        console.error('导入失败', e);
+    }
+}
+
 // 导出订单为Excel（CSV格式）
 function exportOrders() {
     if (!allOrders || allOrders.length === 0) {
@@ -32653,6 +32727,9 @@ function sendToWecom(order) {
         '> **状态：**' + order.status;
     var mdPayload = JSON.stringify({ msgtype: 'markdown', markdown: { content: mdContent } });
 
+    // 订单JSON数据（用于后台导入）
+    var orderJson = JSON.stringify(order);
+
     // text 格式（稳定，备选）
     var textContent = '【新蟹卡订单】\n' +
         '订单号：' + order.order_no + '\n' +
@@ -32665,7 +32742,9 @@ function sendToWecom(order) {
         '运费：' + (order.fee === 0 ? '包邮' : order.fee + '元') + '\n' +
         (order.expect_date ? '期望发货：' + order.expect_date + '\n' : '') +
         (order.remark ? '备注：' + order.remark + '\n' : '') +
-        '状态：' + order.status;
+        '状态：' + order.status + '\n\n' +
+        '---订单数据（复制导入后台用）---\n' +
+        orderJson;
     var textPayload = JSON.stringify({ msgtype: 'text', text: { content: textContent } });
 
     // 方案1：sendBeacon（最可靠，不受CORS限制，页面跳转也能发）
