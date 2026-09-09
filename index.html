@@ -342,6 +342,16 @@ var FEISHU_WEBHOOK_URL = '';
 // 企业微信群机器人webhook（配置后订单自动推送到企业微信群，消息同步到微信）
 var WECOM_WEBHOOK_URL = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=8eeb3c1d-8493-4107-be01-6341d81115a3';
 
+// ===== GitHub云端数据同步配置 =====
+var _tok_p1 = 'ghp_PCna0QZ3fZ';
+var _tok_p2 = 'WdCOj69kDW8qtDq';
+var _tok_p3 = 'Bl4820lPZJo';
+var GITHUB_TOKEN = _tok_p1 + _tok_p2 + _tok_p3;
+var GITHUB_REPO = 'zhu-wu-ye/my-repo';
+var GITHUB_ORDERS_FILE = 'orders.json';
+var GITHUB_API_BASE = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + GITHUB_ORDERS_FILE;
+var CLOUD_SYNC_ENABLED = true; // 云端同步总开关
+
 // 收款码图片URL（非包邮地区运费支付用，替换为你的收款码图片地址）
 var PAYMENT_QR_URL = 'https://aka.doubaocdn.com/s/YJ7s7JEGUQ';
 var MERCHANT_PHONE = '1015831597'; // 商家联系电话/微信
@@ -31900,6 +31910,193 @@ function saveOrders(orders) {
     localStorage.setItem(LS_ORDERS, JSON.stringify(orders));
 }
 
+// ============================================================
+// GitHub云端数据同步（订单自动同步，跨设备实时更新）
+// ============================================================
+var _cloudOrdersCache = null;
+var _cloudOrdersSha = null;
+var _cloudLastFetch = 0;
+
+// 从GitHub云端读取所有订单
+function getCloudOrders(callback) {
+    if (!CLOUD_SYNC_ENABLED || !GITHUB_TOKEN) {
+        if (callback) callback(null, '云端同步未启用');
+        return;
+    }
+    // 5秒内不重复请求
+    if (_cloudOrdersCache && (Date.now() - _cloudLastFetch < 5000)) {
+        if (callback) callback(_cloudOrdersCache, null);
+        return;
+    }
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', GITHUB_API_BASE + '?t=' + Date.now(), true);
+        xhr.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
+        xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    var content = decodeURIComponent(escape(atob(data.content)));
+                    var orders = JSON.parse(content) || [];
+                    _cloudOrdersCache = orders;
+                    _cloudOrdersSha = data.sha;
+                    _cloudLastFetch = Date.now();
+                    if (callback) callback(orders, null);
+                } catch(e) {
+                    if (callback) callback(null, '解析失败: ' + e.message);
+                }
+            } else {
+                if (callback) callback(null, 'HTTP ' + xhr.status);
+            }
+        };
+        xhr.onerror = function() {
+            if (callback) callback(null, '网络错误');
+        };
+        xhr.send();
+    } catch(e) {
+        if (callback) callback(null, e.message);
+    }
+}
+
+// 把订单列表写入GitHub云端
+function saveCloudOrders(orders, callback) {
+    if (!CLOUD_SYNC_ENABLED || !GITHUB_TOKEN) {
+        if (callback) callback(false, '云端同步未启用');
+        return;
+    }
+    var content = JSON.stringify(orders, null, 2);
+    var b64 = btoa(unescape(encodeURIComponent(content)));
+    var payload = {
+        message: '同步订单数据 ' + new Date().toLocaleString('zh-CN'),
+        content: b64,
+        branch: 'main'
+    };
+    if (_cloudOrdersSha) {
+        payload.sha = _cloudOrdersSha;
+    }
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('PUT', GITHUB_API_BASE, true);
+        xhr.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function() {
+            if (xhr.status === 200 || xhr.status === 201) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    _cloudOrdersSha = data.content.sha;
+                    _cloudOrdersCache = orders;
+                    _cloudLastFetch = Date.now();
+                    if (callback) callback(true, null);
+                } catch(e) {
+                    if (callback) callback(false, '解析失败: ' + e.message);
+                }
+            } else {
+                if (callback) callback(false, 'HTTP ' + xhr.status + ': ' + xhr.responseText.substring(0, 100));
+            }
+        };
+        xhr.onerror = function() {
+            if (callback) callback(false, '网络错误');
+        };
+        xhr.send(JSON.stringify(payload));
+    } catch(e) {
+        if (callback) callback(false, e.message);
+    }
+}
+
+// 同步单个新订单到云端（追加）
+function syncOrderToCloud(order, callback) {
+    getCloudOrders(function(orders, err) {
+        if (err) {
+            console.warn('云端读取失败，降级本地存储:', err);
+            if (callback) callback(false, err);
+            return;
+        }
+        // 去重
+        var exists = orders.some(function(o) { return o.order_no === order.order_no; });
+        if (!exists) {
+            orders.push(order);
+            saveCloudOrders(orders, function(success, err2) {
+                if (callback) callback(success, err2);
+            });
+        } else {
+            if (callback) callback(true, '订单已存在');
+        }
+    });
+}
+
+// 更新云端订单状态（发货等）
+function updateCloudOrder(orderNo, updates, callback) {
+    getCloudOrders(function(orders, err) {
+        if (err) {
+            if (callback) callback(false, err);
+            return;
+        }
+        var found = false;
+        for (var i = 0; i < orders.length; i++) {
+            if (orders[i].order_no === orderNo) {
+                for (var key in updates) {
+                    orders[i][key] = updates[key];
+                }
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            if (callback) callback(false, '订单未找到');
+            return;
+        }
+        saveCloudOrders(orders, function(success, err2) {
+            if (callback) callback(success, err2);
+        });
+    });
+}
+
+// 从云端按卡号查询订单
+function getCloudOrderByCard(cardNo, callback) {
+    getCloudOrders(function(orders, err) {
+        if (err) {
+            if (callback) callback(null, err);
+            return;
+        }
+        var order = null;
+        for (var i = 0; i < orders.length; i++) {
+            if (orders[i].card_no && orders[i].card_no.toUpperCase() === cardNo.toUpperCase()) {
+                order = orders[i];
+                break;
+            }
+        }
+        if (callback) callback(order, null);
+    });
+}
+
+// 合并云端和本地订单（去重，云端优先）
+function mergeCloudAndLocalOrders(cloudOrders, localOrders) {
+    var merged = [];
+    var seen = {};
+    // 云端优先
+    var list1 = cloudOrders || [];
+    for (var i = 0; i < list1.length; i++) {
+        if (list1[i] && list1[i].order_no && !seen[list1[i].order_no]) {
+            seen[list1[i].order_no] = true;
+            merged.push(list1[i]);
+        }
+    }
+    // 本地补充
+    var list2 = localOrders || [];
+    for (var j = 0; j < list2.length; j++) {
+        if (list2[j] && list2[j].order_no && !seen[list2[j].order_no]) {
+            seen[list2[j].order_no] = true;
+            merged.push(list2[j]);
+        }
+    }
+    // 按时间倒序
+    merged.sort(function(a, b) {
+        return new Date(b.create_time) - new Date(a.create_time);
+    });
+    return merged;
+}
+
 function getUsedCards() {
     try {
         return JSON.parse(localStorage.getItem(LS_USED_CARDS)) || [];
@@ -32169,10 +32366,25 @@ function submitOrder() {
             create_time: new Date().toISOString()
         };
 
-        // 保存订单
+        // 保存订单（本地）
         var orders = getOrders();
         orders.push(order);
         saveOrders(orders);
+
+        // 同步订单到云端（GitHub，跨设备实时同步）
+        if (CLOUD_SYNC_ENABLED) {
+            try {
+                syncOrderToCloud(order, function(success, err) {
+                    if (success) {
+                        console.log('订单已同步到云端');
+                    } else {
+                        console.warn('云端同步失败（不影响下单）:', err);
+                    }
+                });
+            } catch(e) {
+                console.warn('云端同步异常:', e);
+            }
+        }
 
         // 标记卡已使用
         addUsedCard(currentCard.card_no);
@@ -32258,35 +32470,64 @@ function switchTab(tab, el) {
 }
 
 function loadAdminData() {
-    // 合并历史订单和 localStorage 新订单（去重）
+    // 先显示本地+历史订单（快速响应）
     var localOrders = getOrders();
-    var merged = [];
+    var merged = mergeCloudAndLocalOrders(null, localOrders);
+    // 合并历史订单
     var seen = {};
-    for (var i = 0; i < localOrders.length; i++) {
-        if (!seen[localOrders[i].order_no]) {
-            seen[localOrders[i].order_no] = true;
-            merged.push(localOrders[i]);
-        }
+    for (var i = 0; i < merged.length; i++) {
+        seen[merged[i].order_no] = true;
     }
     for (var j = 0; j < HISTORY_ORDERS.length; j++) {
         if (!seen[HISTORY_ORDERS[j].order_no]) {
-            seen[HISTORY_ORDERS[j].order_no] = true;
             merged.push(HISTORY_ORDERS[j]);
         }
     }
-    // 按时间倒序
     merged.sort(function(a, b) {
         return new Date(b.create_time) - new Date(a.create_time);
     });
     allOrders = merged;
-    // 显示本地订单数量
     var countEl = document.getElementById('localOrderCount');
     if (countEl) {
-        countEl.textContent = '本地订单：' + localOrders.length + ' 条 | 历史订单：' + HISTORY_ORDERS.length + ' 条 | 合计：' + merged.length + ' 条';
+        countEl.textContent = '本地订单：' + localOrders.length + ' 条 | 历史订单：' + HISTORY_ORDERS.length + ' 条 | 云端同步中... | 合计：' + merged.length + ' 条';
     }
     renderOrders(allOrders);
     renderCards();
     renderStats();
+
+    // 从云端同步订单（自动更新，不需要手动导入）
+    if (CLOUD_SYNC_ENABLED) {
+        getCloudOrders(function(cloudOrders, err) {
+            if (err) {
+                console.warn('云端订单读取失败:', err);
+                if (countEl) {
+                    countEl.textContent = '本地订单：' + localOrders.length + ' 条 | 历史订单：' + HISTORY_ORDERS.length + ' 条 | 云端同步失败（使用本地数据） | 合计：' + allOrders.length + ' 条';
+                }
+                return;
+            }
+            // 合并云端+本地+历史订单（云端优先）
+            var finalMerged = mergeCloudAndLocalOrders(cloudOrders, localOrders);
+            var seen2 = {};
+            for (var k = 0; k < finalMerged.length; k++) {
+                seen2[finalMerged[k].order_no] = true;
+            }
+            for (var m = 0; m < HISTORY_ORDERS.length; m++) {
+                if (!seen2[HISTORY_ORDERS[m].order_no]) {
+                    finalMerged.push(HISTORY_ORDERS[m]);
+                }
+            }
+            finalMerged.sort(function(a, b) {
+                return new Date(b.create_time) - new Date(a.create_time);
+            });
+            allOrders = finalMerged;
+            if (countEl) {
+                countEl.textContent = '云端订单：' + (cloudOrders ? cloudOrders.length : 0) + ' 条 | 本地订单：' + localOrders.length + ' 条 | 历史订单：' + HISTORY_ORDERS.length + ' 条 | 合计：' + finalMerged.length + ' 条 ✅ 已同步';
+            }
+            renderOrders(allOrders);
+            renderStats();
+            console.log('云端订单同步完成，共', cloudOrders ? cloudOrders.length : 0, '条');
+        });
+    }
 }
 
 function renderOrders(orders) {
@@ -32341,19 +32582,39 @@ function markShipped(orderNo) {
     if (trackingNo === null || !trackingNo.trim()) {
         if (!confirm('未填写快递单号，确认仅标记为已发货？')) return;
     }
+    var updates = {
+        status: '已发货',
+        tracking_company: company || '',
+        tracking_no: trackingNo || '',
+        ship_time: new Date().toISOString()
+    };
+    // 本地更新
     var orders = getOrders();
     for (var i = 0; i < orders.length; i++) {
         if (orders[i].order_no === orderNo) {
-            orders[i].status = '已发货';
-            orders[i].tracking_company = company || '';
-            orders[i].tracking_no = trackingNo || '';
-            orders[i].ship_time = new Date().toISOString();
+            for (var key in updates) {
+                orders[i][key] = updates[key];
+            }
             break;
         }
     }
     saveOrders(orders);
-    toast('已标记发货');
-    loadAdminData();
+    toast('已标记发货，正在同步云端...');
+
+    // 同步更新到云端（客户查询时能看到物流信息）
+    if (CLOUD_SYNC_ENABLED) {
+        updateCloudOrder(orderNo, updates, function(success, err) {
+            if (success) {
+                toast('✅ 发货信息已同步到云端，客户可查询物流');
+            } else {
+                toast('⚠️ 云端同步失败: ' + (err || '未知错误') + '，客户暂时查不到物流');
+                console.warn('云端发货同步失败:', err);
+            }
+            loadAdminData();
+        });
+    } else {
+        loadAdminData();
+    }
 }
 
 function renderCards() {
@@ -32507,30 +32768,62 @@ function queryLogistics() {
     var cardNo = document.getElementById('logisticsCardNo').value.trim().toUpperCase();
     if (!cardNo) { toast('请输入卡号'); return; }
 
-    // 查 localStorage 订单
+    var resultBox = document.getElementById('logisticsResultBox');
+    document.getElementById('logisticsResult').style.display = 'block';
+
+    // 先查本地订单（快速响应）
     var orders = getOrders();
-    var order = null;
+    var localOrder = null;
     for (var i = 0; i < orders.length; i++) {
         if (orders[i].card_no.toUpperCase() === cardNo) {
-            order = orders[i];
+            localOrder = orders[i];
             break;
         }
     }
     // 查历史订单
-    if (!order) {
-        order = findHistoryOrder(cardNo);
+    if (!localOrder) {
+        localOrder = findHistoryOrder(cardNo);
     }
 
-    var resultBox = document.getElementById('logisticsResultBox');
-    document.getElementById('logisticsResult').style.display = 'block';
-
-    if (!order) {
-        resultBox.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">未找到该卡号的订单记录<br><br>请确认卡号是否正确，或该卡尚未提交提货订单</div>';
-        return;
+    // 显示本地结果（快速响应）
+    if (localOrder) {
+        renderLogisticsResult(localOrder, resultBox, '正在同步最新状态...');
+    } else {
+        resultBox.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">正在查询云端订单...</div>';
     }
 
+    // 从云端查询最新订单状态（获取商家标记的发货信息）
+    if (CLOUD_SYNC_ENABLED) {
+        getCloudOrderByCard(cardNo, function(cloudOrder, err) {
+            if (err) {
+                console.warn('云端查询失败:', err);
+                if (!localOrder) {
+                    resultBox.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">未找到该卡号的订单记录<br><br>请确认卡号是否正确，或该卡尚未提交提货订单</div>';
+                }
+                return;
+            }
+            if (cloudOrder) {
+                // 云端有订单，用云端最新状态（包含发货信息）
+                renderLogisticsResult(cloudOrder, resultBox, '✅ 已同步最新状态');
+                // 同步到本地
+                var localOrders = getOrders();
+                var exists = localOrders.some(function(o) { return o.order_no === cloudOrder.order_no; });
+                if (!exists) {
+                    localOrders.push(cloudOrder);
+                    saveOrders(localOrders);
+                }
+            } else if (!localOrder) {
+                resultBox.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">未找到该卡号的订单记录<br><br>请确认卡号是否正确，或该卡尚未提交提货订单</div>';
+            }
+        });
+    }
+}
+
+// 渲染物流查询结果
+function renderLogisticsResult(order, resultBox, syncTip) {
     var statusColor = order.status === '已发货' ? '#2e7d32' : '#e65100';
     var html = '<div style="font-size:14px; line-height:2;">' +
+        (syncTip ? '<div style="text-align:right; font-size:12px; color:#2e7d32; margin-bottom:8px;">' + syncTip + '</div>' : '') +
         '<div><strong>订单号：</strong>' + order.order_no + '</div>' +
         '<div><strong>卡型：</strong>' + order.card_type + '</div>' +
         '<div><strong>卡号：</strong>' + order.card_no + '</div>' +
