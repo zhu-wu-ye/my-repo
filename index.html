@@ -289,6 +289,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
       <input type="text" id="searchOrder" placeholder="搜索订单号/卡号/收货人/电话" oninput="filterOrders()" style="flex:1; min-width:200px;">
       <button class="btn btn-small" onclick="showImportDialog()" style="white-space:nowrap; background:#1565c0;">📥 导入订单</button>
       <button class="btn btn-small" onclick="exportOrders()" style="white-space:nowrap; background:#2e7d32;">📊 导出Excel</button>
+      <button class="btn btn-small" onclick="refreshAdminData()" style="white-space:nowrap; background:#f57c00;">🔄 刷新数据</button>
     </div>
     <!-- 导入订单弹窗 -->
     <div id="importDialog" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
@@ -32028,8 +32029,8 @@ function getCloudOrders(callback) {
         if (callback) callback(null, '云端同步未启用');
         return;
     }
-    // 5秒内不重复请求
-    if (_cloudOrdersCache && (Date.now() - _cloudLastFetch < 5000)) {
+    // 2秒内不重复请求
+    if (_cloudOrdersCache && (Date.now() - _cloudLastFetch < 2000)) {
         if (callback) callback(_cloudOrdersCache, null);
         return;
     }
@@ -32846,6 +32847,28 @@ function loadAdminData() {
     
     // 更新待同步订单显示
     updatePendingSyncBox();
+}
+
+// 强制刷新后台数据（清除缓存，重新从云端加载）
+function refreshAdminData() {
+    // 清除云端缓存，强制重新请求
+    _cloudOrdersCache = null;
+    _cloudOrdersSha = null;
+    _cloudLastFetch = 0;
+    
+    toast('正在从云端刷新数据...');
+    
+    // 先同步待同步订单（把本地没传上去的先传上去）
+    syncPendingOrders(function(success, fail) {
+        if (success > 0) {
+            console.log('刷新前同步了 ' + success + ' 个待同步订单');
+        }
+        // 然后重新加载后台数据
+        setTimeout(function() {
+            loadAdminData();
+            toast('✅ 数据已刷新');
+        }, 500);
+    });
 }
 
 function updatePendingSyncBox() {
