@@ -33068,6 +33068,28 @@ document.addEventListener('DOMContentLoaded', function() {
         var maxStr = y + '-12-25';
         dateInput.max = maxStr;
     }
+    
+    // 页面加载2秒后自动同步待同步订单（确保云端数据不丢失）
+    setTimeout(function() {
+        if (typeof syncPendingOrders === 'function') {
+            syncPendingOrders(function(success, fail) {
+                if (success > 0) {
+                    console.log('自动同步了 ' + success + ' 个待同步订单到云端');
+                }
+            });
+        }
+    }, 2000);
+    
+    // 页面加载3秒后检查系统健康状态（token是否有效等）
+    setTimeout(function() {
+        if (typeof checkSystemHealth === 'function') {
+            checkSystemHealth(function(health) {
+                if (!health.tokenValid) {
+                    console.warn('⚠️ GitHub Token已失效，请在后台系统设置中更新');
+                }
+            });
+        }
+    }, 3000);
 });
 
 // 显示运费支付页面
