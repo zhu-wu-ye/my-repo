@@ -303,6 +303,10 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
       </div>
     </div>
     <div id="localOrderCount" style="font-size:12px; color:#999; padding:5px 10px;"></div>
+    <div id="pendingSyncBox" style="display:none; background:#fff3e0; border-radius:8px; padding:10px 15px; margin-bottom:10px; font-size:13px;">
+      <span style="color:#e65100;">⚠️ 有 <strong id="pendingCount">0</strong> 个订单待同步到云端</span>
+      <button class="btn btn-small" onclick="manualSyncPending()" style="margin-left:10px; background:#e65100;">立即同步</button>
+    </div>
     <div id="ordersList"></div>
   </div>
   <div id="tab-cards" style="display:none;">
@@ -389,6 +393,9 @@ var CLOUD_SYNC_ENABLED = true; // 云端同步总开关
 var DEFAULT_PAYMENT_QR_URL = 'https://raw.githubusercontent.com/zhu-wu-ye/my-repo/main/payment_qr.webp';
 var PAYMENT_QR_URL = CUSTOM_PAYMENT_QR_URL || DEFAULT_PAYMENT_QR_URL;
 var MERCHANT_PHONE = '1015831597'; // 商家联系电话/微信
+
+// 待同步订单队列（云端写入失败时暂存本地，下次打开自动重试）
+var LS_PENDING_ORDERS = 'crab_pending_orders';
 
 // ============================================================
 // 蟹卡数据区 —— 请替换为你的真实卡号卡密
@@ -31944,6 +31951,69 @@ function saveOrders(orders) {
     localStorage.setItem(LS_ORDERS, JSON.stringify(orders));
 }
 
+// ===== 待同步订单队列（确保云端数据不丢失）=====
+function getPendingOrders() {
+    try {
+        return JSON.parse(localStorage.getItem(LS_PENDING_ORDERS)) || [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function addPendingOrder(order) {
+    var pending = getPendingOrders();
+    var exists = pending.some(function(o) { return o.order_no === order.order_no; });
+    if (!exists) {
+        pending.push(order);
+        localStorage.setItem(LS_PENDING_ORDERS, JSON.stringify(pending));
+    }
+    return pending.length;
+}
+
+function removePendingOrder(orderNo) {
+    var pending = getPendingOrders();
+    pending = pending.filter(function(o) { return o.order_no !== orderNo; });
+    localStorage.setItem(LS_PENDING_ORDERS, JSON.stringify(pending));
+    return pending.length;
+}
+
+function getPendingCount() {
+    return getPendingOrders().length;
+}
+
+// 同步所有待同步订单到云端
+function syncPendingOrders(callback) {
+    var pending = getPendingOrders();
+    if (pending.length === 0) {
+        if (callback) callback(0, 0);
+        return;
+    }
+    console.log('发现 ' + pending.length + ' 个待同步订单，开始同步...');
+    var successCount = 0;
+    var failCount = 0;
+    var index = 0;
+    
+    function syncNext() {
+        if (index >= pending.length) {
+            console.log('待同步订单处理完成：成功' + successCount + '个，失败' + failCount + '个');
+            if (callback) callback(successCount, failCount);
+            return;
+        }
+        var order = pending[index];
+        syncOrderToCloud(order, function(success, err) {
+            if (success) {
+                removePendingOrder(order.order_no);
+                successCount++;
+            } else {
+                failCount++;
+            }
+            index++;
+            syncNext();
+        });
+    }
+    syncNext();
+}
+
 // ============================================================
 // GitHub云端数据同步（订单自动同步，跨设备实时更新）
 // ============================================================
@@ -32412,11 +32482,18 @@ function submitOrder() {
                     if (success) {
                         console.log('订单已同步到云端');
                     } else {
-                        console.warn('云端同步失败（不影响下单）:', err);
+                        console.warn('云端同步失败，已加入待同步队列:', err);
+                        // 关键：云端写入失败时，把订单加入待同步队列，下次打开自动重试
+                        addPendingOrder(order);
+                        // 给用户提示（不阻止下单）
+                        setTimeout(function() {
+                            toast('订单已提交，云端同步中...');
+                        }, 1000);
                     }
                 });
             } catch(e) {
-                console.warn('云端同步异常:', e);
+                console.warn('云端同步异常，已加入待同步队列:', e);
+                addPendingOrder(order);
             }
         }
 
@@ -32628,6 +32705,39 @@ function loadAdminData() {
             console.log('云端订单同步完成，共', cloudOrders ? cloudOrders.length : 0, '条');
         });
     }
+    
+    // 更新待同步订单显示
+    updatePendingSyncBox();
+}
+
+function updatePendingSyncBox() {
+    var count = getPendingCount();
+    var box = document.getElementById('pendingSyncBox');
+    var countEl = document.getElementById('pendingCount');
+    if (box && countEl) {
+        if (count > 0) {
+            box.style.display = 'block';
+            countEl.textContent = count;
+        } else {
+            box.style.display = 'none';
+        }
+    }
+}
+
+function manualSyncPending() {
+    var count = getPendingCount();
+    if (count === 0) { toast('没有待同步的订单'); return; }
+    toast('正在同步 ' + count + ' 个订单...');
+    syncPendingOrders(function(success, fail) {
+        updatePendingSyncBox();
+        if (fail === 0) {
+            toast('✅ 同步成功 ' + success + ' 个订单');
+            // 同步成功后重新加载订单列表
+            loadAdminData();
+        } else {
+            toast('同步完成：成功' + success + '个，失败' + fail + '个');
+        }
+    });
 }
 
 function renderOrders(orders) {
