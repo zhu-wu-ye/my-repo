@@ -33084,7 +33084,15 @@ function showPaymentPage(order) {
     // 如果配置了收款码URL，显示图片
     var qrBox = document.getElementById('paymentQrImg');
     if (PAYMENT_QR_URL) {
-        qrBox.innerHTML = '<img src="' + PAYMENT_QR_URL + '" style="width:100%; height:auto; display:block; border-radius:6px;" onerror="this.style.display='none';document.getElementById('qrFallback').style.display='block';"><div id="qrFallback" style="display:none; padding:20px; text-align:center; color:#666; font-size:14px; line-height:1.8;"><p style="color:#B22222; font-weight:bold; margin-bottom:8px;">⚠️ 收款码加载失败</p><p>请添加商家微信支付运费</p><p style="margin-top:8px; font-size:16px; font-weight:bold; color:#333;">微信号：' + MERCHANT_PHONE + '</p><p style="margin-top:8px; font-size:12px; color:#999;">支付后请截图联系商家确认</p></div>';
+        qrBox.innerHTML = '<img id="paymentQrImgTag" src="' + PAYMENT_QR_URL + '" style="width:100%; height:auto; display:block; border-radius:6px;"><div id="qrFallback" style="display:none; padding:20px; text-align:center; color:#666; font-size:14px; line-height:1.8;"><p style="color:#B22222; font-weight:bold; margin-bottom:8px;">⚠️ 收款码加载失败</p><p>请添加商家微信支付运费</p><p style="margin-top:8px; font-size:16px; font-weight:bold; color:#333;">微信号：' + MERCHANT_PHONE + '</p><p style="margin-top:8px; font-size:12px; color:#999;">支付后请截图联系商家确认</p></div>';
+    // 图片加载失败时显示兜底提示
+    var qrImg = document.getElementById('paymentQrImgTag');
+    if (qrImg) {
+        qrImg.onerror = function() {
+            this.style.display = 'none';
+            document.getElementById('qrFallback').style.display = 'block';
+        };
+    }
     }
 
     showPage('page-payment');
