@@ -318,6 +318,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
   <div id="tab-settings" style="display:none;">
     <div class="card">
       <h3 style="margin-bottom:15px; color:#B22222;">⚙️ 系统设置</h3>
+      <div id="systemHealthStatus" style="background:#f5f5f5; border-radius:6px; padding:10px 12px; margin-bottom:15px; font-size:13px;">检测中...</div>
       <p style="font-size:13px; color:#666; margin-bottom:15px;">如果云端数据同步失败或收款码显示不出来，在这里更新配置即可，无需修改代码。</p>
       <div class="form-group">
         <label>GitHub Token（云端数据同步用）</label>
@@ -32021,7 +32022,7 @@ var _cloudOrdersCache = null;
 var _cloudOrdersSha = null;
 var _cloudLastFetch = 0;
 
-// 从GitHub云端读取所有订单
+// 从GitHub云端读取所有订单（带数据容错+本地备份恢复）
 function getCloudOrders(callback) {
     if (!CLOUD_SYNC_ENABLED || !GITHUB_TOKEN) {
         if (callback) callback(null, '云端同步未启用');
@@ -32032,6 +32033,16 @@ function getCloudOrders(callback) {
         if (callback) callback(_cloudOrdersCache, null);
         return;
     }
+    // 从本地备份恢复的辅助函数
+    function tryBackup() {
+        var backup = localStorage.getItem('crab_cloud_backup');
+        if (backup) {
+            try {
+                return JSON.parse(backup);
+            } catch(e) {}
+        }
+        return null;
+    }
     try {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', GITHUB_API_BASE + '?t=' + Date.now(), true);
@@ -32041,34 +32052,68 @@ function getCloudOrders(callback) {
             if (xhr.status === 200) {
                 try {
                     var data = JSON.parse(xhr.responseText);
-                    var content = decodeURIComponent(escape(atob(data.content)));
-                    var orders = JSON.parse(content) || [];
+                    var rawContent = decodeURIComponent(escape(atob(data.content)));
+                    var orders = JSON.parse(rawContent) || [];
                     _cloudOrdersCache = orders;
                     _cloudOrdersSha = data.sha;
                     _cloudLastFetch = Date.now();
+                    // 成功读取后备份到本地
+                    localStorage.setItem('crab_cloud_backup', JSON.stringify(orders));
                     if (callback) callback(orders, null);
                 } catch(e) {
-                    if (callback) callback(null, '解析失败: ' + e.message);
+                    // 云端数据格式错误，尝试从本地备份恢复
+                    console.warn('云端数据解析失败，尝试从本地备份恢复:', e);
+                    var backupOrders = tryBackup();
+                    if (backupOrders) {
+                        if (callback) callback(backupOrders, null);
+                    } else {
+                        if (callback) callback([], null); // 返回空数组，不崩溃
+                    }
                 }
+            } else if (xhr.status === 401) {
+                if (callback) callback(null, 'GitHub Token已失效，请在后台系统设置中更新');
+            } else if (xhr.status === 404) {
+                // 文件不存在，返回空数组
+                if (callback) callback([], null);
             } else {
-                if (callback) callback(null, 'HTTP ' + xhr.status);
+                // 其他错误，尝试从本地备份恢复
+                var backupOrders = tryBackup();
+                if (backupOrders) {
+                    if (callback) callback(backupOrders, null);
+                } else {
+                    if (callback) callback(null, 'HTTP ' + xhr.status);
+                }
             }
         };
         xhr.onerror = function() {
-            if (callback) callback(null, '网络错误');
+            // 网络错误，尝试从本地备份恢复
+            var backupOrders = tryBackup();
+            if (backupOrders) {
+                if (callback) callback(backupOrders, null);
+            } else {
+                if (callback) callback(null, '网络错误');
+            }
         };
         xhr.send();
     } catch(e) {
-        if (callback) callback(null, e.message);
+        var backupOrders = tryBackup();
+        if (backupOrders) {
+            if (callback) callback(backupOrders, null);
+        } else {
+            if (callback) callback(null, e.message);
+        }
     }
 }
 
-// 把订单列表写入GitHub云端
-function saveCloudOrders(orders, callback) {
+// 把订单列表写入GitHub云端（带重试机制+冲突自动合并+数据备份）
+function saveCloudOrders(orders, callback, retryCount) {
     if (!CLOUD_SYNC_ENABLED || !GITHUB_TOKEN) {
         if (callback) callback(false, '云端同步未启用');
         return;
     }
+    retryCount = retryCount || 0;
+    var maxRetries = 3;
+    
     var content = JSON.stringify(orders, null, 2);
     var b64 = btoa(unescape(encodeURIComponent(content)));
     var payload = {
@@ -32091,16 +32136,55 @@ function saveCloudOrders(orders, callback) {
                     _cloudOrdersSha = data.content.sha;
                     _cloudOrdersCache = orders;
                     _cloudLastFetch = Date.now();
+                    // 成功写入后备份到本地
+                    localStorage.setItem('crab_cloud_backup', JSON.stringify(orders));
                     if (callback) callback(true, null);
                 } catch(e) {
                     if (callback) callback(false, '解析失败: ' + e.message);
                 }
+            } else if ((xhr.status === 409 || xhr.status === 422) && retryCount < maxRetries) {
+                // 并发冲突/SHA不匹配：重新获取最新数据，合并后重试
+                console.warn('云端更新冲突，正在自动合并重试 (' + (retryCount+1) + '/' + maxRetries + ')...');
+                setTimeout(function() {
+                    _cloudOrdersSha = null;
+                    _cloudOrdersCache = null;
+                    getCloudOrders(function(latestOrders, err) {
+                        if (err) {
+                            if (callback) callback(false, '重试失败: ' + err);
+                            return;
+                        }
+                        // 合并：把待保存的订单追加到最新数据中（按order_no去重）
+                        var existingNos = {};
+                        for (var i = 0; i < latestOrders.length; i++) {
+                            existingNos[latestOrders[i].order_no] = true;
+                        }
+                        for (var j = 0; j < orders.length; j++) {
+                            if (!existingNos[orders[j].order_no]) {
+                                latestOrders.push(orders[j]);
+                            }
+                        }
+                        latestOrders.sort(function(a, b) {
+                            return new Date(a.create_time) - new Date(b.create_time);
+                        });
+                        saveCloudOrders(latestOrders, callback, retryCount + 1);
+                    });
+                }, 1000);
+            } else if (xhr.status === 401) {
+                if (callback) callback(false, 'GitHub Token已失效，请在后台系统设置中更新');
             } else {
                 if (callback) callback(false, 'HTTP ' + xhr.status + ': ' + xhr.responseText.substring(0, 100));
             }
         };
         xhr.onerror = function() {
-            if (callback) callback(false, '网络错误');
+            // 网络错误，自动重试
+            if (retryCount < maxRetries) {
+                console.warn('网络错误，正在重试 (' + (retryCount+1) + '/' + maxRetries + ')...');
+                setTimeout(function() {
+                    saveCloudOrders(orders, callback, retryCount + 1);
+                }, 2000);
+            } else {
+                if (callback) callback(false, '网络错误，已重试' + maxRetries + '次');
+            }
         };
         xhr.send(JSON.stringify(payload));
     } catch(e) {
@@ -32234,9 +32318,10 @@ function isCardUsed(cardNo) {
 function generateOrderNo() {
     var d = new Date();
     var pad = function(n) { return n < 10 ? '0' + n : n; };
+    var random = Math.floor(Math.random() * 100000).toString();
+    while (random.length < 5) random = '0' + random;
     return 'XM' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) +
-           pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) +
-           Math.floor(Math.random() * 1000);
+           pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + random;
 }
 
 // ============================================================
@@ -32572,6 +32657,55 @@ function adminLogout() {
     showPage('page-home');
 }
 
+// ===== 系统健康检查 =====
+function checkSystemHealth(callback) {
+    var health = {
+        tokenValid: false,
+        cloudAccessible: false,
+        cloudOrderCount: 0,
+        pendingCount: getPendingCount(),
+        localOrderCount: getOrders().length
+    };
+    if (!GITHUB_TOKEN) {
+        if (callback) callback(health);
+        return;
+    }
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'https://api.github.com/user', true);
+        xhr.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
+        xhr.timeout = 8000;
+        xhr.onload = function() {
+            health.tokenValid = (xhr.status === 200);
+            getCloudOrders(function(orders, err) {
+                health.cloudAccessible = !err;
+                health.cloudOrderCount = orders ? orders.length : 0;
+                health.error = err;
+                if (callback) callback(health);
+            });
+        };
+        xhr.onerror = function() { if (callback) callback(health); };
+        xhr.ontimeout = function() { if (callback) callback(health); };
+        xhr.send();
+    } catch(e) {
+        if (callback) callback(health);
+    }
+}
+
+function updateHealthDisplay(health) {
+    var el = document.getElementById('systemHealthStatus');
+    if (!el) return;
+    if (health.tokenValid && health.cloudAccessible) {
+        el.innerHTML = '<span style="color:#2e7d32;">✅ 系统正常 | Token有效 | 云端订单' + health.cloudOrderCount + '条 | 待同步' + health.pendingCount + '条</span>';
+    } else if (!health.tokenValid) {
+        el.innerHTML = '<span style="color:#c62828;">❌ Token已失效，请在下方更新新Token</span>';
+    } else if (!health.cloudAccessible) {
+        el.innerHTML = '<span style="color:#f57c00;">⚠️ 云端访问异常: ' + (health.error || '未知错误') + '</span>';
+    } else {
+        el.innerHTML = '<span style="color:#999;">检测中...</span>';
+    }
+}
+
 // ===== 系统设置功能 =====
 function loadSettings() {
     var token = localStorage.getItem('custom_github_token') || '';
@@ -32579,6 +32713,8 @@ function loadSettings() {
     document.getElementById('settingGithubToken').value = token;
     document.getElementById('settingQrUrl').value = qrUrl;
     checkTokenStatus(token || GITHUB_TOKEN);
+    // 加载设置时自动检查系统健康状态
+    checkSystemHealth(updateHealthDisplay);
 }
 
 function checkTokenStatus(token) {
@@ -32623,6 +32759,8 @@ function saveSettings() {
     }
     toast('设置已保存，刷新页面后生效');
     checkTokenStatus(GITHUB_TOKEN);
+    // 保存后重新检查健康状态
+    checkSystemHealth(updateHealthDisplay);
 }
 
 function resetSettings() {
