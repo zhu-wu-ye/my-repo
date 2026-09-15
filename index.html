@@ -282,6 +282,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
     <div class="tab active" onclick="switchTab('orders', this)">订单管理</div>
     <div class="tab" onclick="switchTab('cards', this)">蟹卡管理</div>
     <div class="tab" onclick="switchTab('stats', this)">数据统计</div>
+    <div class="tab" onclick="switchTab('settings', this)">系统设置</div>
   </div>
   <div id="tab-orders">
     <div class="search-box" style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -309,6 +310,33 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica
   </div>
   <div id="tab-stats" style="display:none;">
     <div id="statsBox"></div>
+  </div>
+  <div id="tab-settings" style="display:none;">
+    <div class="card">
+      <h3 style="margin-bottom:15px; color:#B22222;">⚙️ 系统设置</h3>
+      <p style="font-size:13px; color:#666; margin-bottom:15px;">如果云端数据同步失败或收款码显示不出来，在这里更新配置即可，无需修改代码。</p>
+      <div class="form-group">
+        <label>GitHub Token（云端数据同步用）</label>
+        <input type="text" id="settingGithubToken" placeholder="ghp_xxxxxxxxxxxx" style="font-size:12px; font-family:monospace;">
+        <p style="font-size:11px; color:#999; margin-top:5px;">当前状态：<span id="tokenStatus">检测中...</span></p>
+      </div>
+      <div class="form-group">
+        <label>收款码图片链接（运费支付用）</label>
+        <input type="text" id="settingQrUrl" placeholder="https://example.com/qrcode.jpg">
+        <p style="font-size:11px; color:#999; margin-top:5px;">建议把收款码图片上传到GitHub仓库，用raw链接，永久有效</p>
+      </div>
+      <button class="btn" onclick="saveSettings()" style="margin-top:10px;">💾 保存设置</button>
+      <button class="btn btn-outline" onclick="resetSettings()" style="margin-top:10px;">🔄 恢复默认</button>
+    </div>
+    <div class="card" style="background:#fff8e1;">
+      <h4 style="color:#e65100; margin-bottom:10px;">📌 使用说明</h4>
+      <ol style="font-size:13px; color:#666; line-height:1.8; padding-left:20px;">
+        <li><strong>云端数据不同步了？</strong> 去GitHub生成新的token，粘贴到上面，点保存即可</li>
+        <li><strong>收款码不显示了？</strong> 把新的收款码图片链接粘贴到上面，点保存即可</li>
+        <li><strong>设置保存在本浏览器</strong>，换浏览器或清缓存后需要重新设置</li>
+        <li><strong>建议把收款码图片上传到本GitHub仓库</strong>，用 raw.githubusercontent.com 的链接，永远不会过期</li>
+      </ol>
+    </div>
   </div>
   <button class="btn btn-outline" onclick="adminLogout()" style="margin-top:20px;">退出登录</button>
 </div>
@@ -343,17 +371,23 @@ var FEISHU_WEBHOOK_URL = '';
 var WECOM_WEBHOOK_URL = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=8eeb3c1d-8493-4107-be01-6341d81115a3';
 
 // ===== GitHub云端数据同步配置 =====
+// ===== 自定义配置（优先从localStorage读取，可在后台"系统设置"中修改）=====
+var CUSTOM_GITHUB_TOKEN = localStorage.getItem('custom_github_token') || '';
+var CUSTOM_PAYMENT_QR_URL = localStorage.getItem('custom_payment_qr_url') || '';
+
 var _tok_p1 = 'ghp_BxUUfjpHMTga';
 var _tok_p2 = 'qbfAj2Je2xY5cNf';
 var _tok_p3 = 'Nob20YyWd';
-var GITHUB_TOKEN = _tok_p1 + _tok_p2 + _tok_p3;
+var DEFAULT_GITHUB_TOKEN = _tok_p1 + _tok_p2 + _tok_p3;
+var GITHUB_TOKEN = CUSTOM_GITHUB_TOKEN || DEFAULT_GITHUB_TOKEN;
 var GITHUB_REPO = 'zhu-wu-ye/my-repo';
 var GITHUB_ORDERS_FILE = 'orders.json';
 var GITHUB_API_BASE = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + GITHUB_ORDERS_FILE;
 var CLOUD_SYNC_ENABLED = true; // 云端同步总开关
 
-// 收款码图片URL（非包邮地区运费支付用，替换为你的收款码图片地址）
-var PAYMENT_QR_URL = 'https://aka.doubaocdn.com/s/YJ7s7JEGUQ';
+// 收款码图片URL（非包邮地区运费支付用，可在后台"系统设置"中修改）
+var DEFAULT_PAYMENT_QR_URL = 'https://aka.doubaocdn.com/s/YJ7s7JEGUQ';
+var PAYMENT_QR_URL = CUSTOM_PAYMENT_QR_URL || DEFAULT_PAYMENT_QR_URL;
 var MERCHANT_PHONE = '1015831597'; // 商家联系电话/微信
 
 // ============================================================
@@ -32461,12 +32495,78 @@ function adminLogout() {
     showPage('page-home');
 }
 
+// ===== 系统设置功能 =====
+function loadSettings() {
+    var token = localStorage.getItem('custom_github_token') || '';
+    var qrUrl = localStorage.getItem('custom_payment_qr_url') || '';
+    document.getElementById('settingGithubToken').value = token;
+    document.getElementById('settingQrUrl').value = qrUrl;
+    checkTokenStatus(token || GITHUB_TOKEN);
+}
+
+function checkTokenStatus(token) {
+    var statusEl = document.getElementById('tokenStatus');
+    if (!token) { statusEl.innerHTML = '<span style="color:#999;">未配置</span>'; return; }
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'https://api.github.com/user', true);
+        xhr.setRequestHeader('Authorization', 'token ' + token);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                statusEl.innerHTML = '<span style="color:#2e7d32;">✅ 正常有效</span>';
+            } else {
+                statusEl.innerHTML = '<span style="color:#c62828;">❌ 已失效（HTTP ' + xhr.status + '），请更新</span>';
+            }
+        };
+        xhr.onerror = function() {
+            statusEl.innerHTML = '<span style="color:#f57c00;">⚠️ 网络错误，无法检测</span>';
+        };
+        xhr.send();
+    } catch(e) {
+        statusEl.innerHTML = '<span style="color:#999;">检测失败</span>';
+    }
+}
+
+function saveSettings() {
+    var token = document.getElementById('settingGithubToken').value.trim();
+    var qrUrl = document.getElementById('settingQrUrl').value.trim();
+    if (token) {
+        localStorage.setItem('custom_github_token', token);
+        GITHUB_TOKEN = token;
+    } else {
+        localStorage.removeItem('custom_github_token');
+        GITHUB_TOKEN = DEFAULT_GITHUB_TOKEN;
+    }
+    if (qrUrl) {
+        localStorage.setItem('custom_payment_qr_url', qrUrl);
+        PAYMENT_QR_URL = qrUrl;
+    } else {
+        localStorage.removeItem('custom_payment_qr_url');
+        PAYMENT_QR_URL = DEFAULT_PAYMENT_QR_URL;
+    }
+    toast('设置已保存，刷新页面后生效');
+    checkTokenStatus(GITHUB_TOKEN);
+}
+
+function resetSettings() {
+    if (confirm('确定要恢复默认设置吗？')) {
+        localStorage.removeItem('custom_github_token');
+        localStorage.removeItem('custom_payment_qr_url');
+        GITHUB_TOKEN = DEFAULT_GITHUB_TOKEN;
+        PAYMENT_QR_URL = DEFAULT_PAYMENT_QR_URL;
+        loadSettings();
+        toast('已恢复默认设置');
+    }
+}
+
 function switchTab(tab, el) {
     document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
     el.classList.add('active');
     document.getElementById('tab-orders').style.display = tab === 'orders' ? 'block' : 'none';
     document.getElementById('tab-cards').style.display = tab === 'cards' ? 'block' : 'none';
     document.getElementById('tab-stats').style.display = tab === 'stats' ? 'block' : 'none';
+    document.getElementById('tab-settings').style.display = tab === 'settings' ? 'block' : 'none';
+    if (tab === 'settings') { loadSettings(); }
 }
 
 function loadAdminData() {
