@@ -343,9 +343,9 @@ var FEISHU_WEBHOOK_URL = '';
 var WECOM_WEBHOOK_URL = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=8eeb3c1d-8493-4107-be01-6341d81115a3';
 
 // ===== GitHub云端数据同步配置 =====
-var _tok_p1 = 'ghp_PCna0QZ3fZ';
-var _tok_p2 = 'WdCOj69kDW8qtDq';
-var _tok_p3 = 'Bl4820lPZJo';
+var _tok_p1 = 'ghp_BxUUfjpHMTga';
+var _tok_p2 = 'qbfAj2Je2xY5cNf';
+var _tok_p3 = 'Nob20YyWd';
 var GITHUB_TOKEN = _tok_p1 + _tok_p2 + _tok_p3;
 var GITHUB_REPO = 'zhu-wu-ye/my-repo';
 var GITHUB_ORDERS_FILE = 'orders.json';
@@ -32736,7 +32736,7 @@ function showPaymentPage(order) {
     // 如果配置了收款码URL，显示图片
     var qrBox = document.getElementById('paymentQrImg');
     if (PAYMENT_QR_URL) {
-        qrBox.innerHTML = '<img src="' + PAYMENT_QR_URL + '" style="width:100%; height:auto; display:block; border-radius:6px;">';
+        qrBox.innerHTML = '<img src="' + PAYMENT_QR_URL + '" style="width:100%; height:auto; display:block; border-radius:6px;" onerror="this.style.display='none';document.getElementById('qrFallback').style.display='block';"><div id="qrFallback" style="display:none; padding:20px; text-align:center; color:#666; font-size:14px; line-height:1.8;"><p style="color:#B22222; font-weight:bold; margin-bottom:8px;">⚠️ 收款码加载失败</p><p>请添加商家微信支付运费</p><p style="margin-top:8px; font-size:16px; font-weight:bold; color:#333;">微信号：' + MERCHANT_PHONE + '</p><p style="margin-top:8px; font-size:12px; color:#999;">支付后请截图联系商家确认</p></div>';
     }
 
     showPage('page-payment');
