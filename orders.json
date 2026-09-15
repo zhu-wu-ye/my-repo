@@ -140,10 +140,11 @@
     "expect_date": "2026-12-16",
     "remark": "全母蟹",
     "fee": 30,
-    "status": "待发货",
-    "tracking_company": "",
-    "tracking_no": "",
-    "create_time": "2026-09-15T14:57:30.537Z"
+    "status": "已发货",
+    "tracking_company": "顺丰",
+    "tracking_no": "888",
+    "create_time": "2026-09-15T14:57:30.537Z",
+    "ship_time": "2026-09-15T15:28:37.623Z"
   },
   {
     "order_no": "XM2026091523261171593",
