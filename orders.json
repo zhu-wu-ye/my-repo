@@ -178,9 +178,10 @@
     "expect_date": "2026-10-23",
     "remark": "无要求",
     "fee": 30,
-    "status": "待发货",
-    "tracking_company": "",
-    "tracking_no": "",
-    "create_time": "2026-09-15T15:33:16.005Z"
+    "status": "已发货",
+    "tracking_company": "顺丰",
+    "tracking_no": "666",
+    "create_time": "2026-09-15T15:33:16.005Z",
+    "ship_time": "2026-09-15T15:35:31.379Z"
   }
 ]
