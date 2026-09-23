@@ -215,9 +215,10 @@
     "expect_date": "2026-09-25",
     "remark": "25号送到",
     "fee": 30,
-    "status": "待发货",
-    "tracking_company": "",
-    "tracking_no": "",
-    "create_time": "2026-09-22T15:58:34.655Z"
+    "status": "已发货",
+    "tracking_company": "顺丰",
+    "tracking_no": "SF1570098239050",
+    "create_time": "2026-09-22T15:58:34.655Z",
+    "ship_time": "2026-09-23T02:38:30.211Z"
   }
 ]
