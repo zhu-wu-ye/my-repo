@@ -277,9 +277,10 @@
     "expect_date": "2026-10-08",
     "remark": "派送前请打电话确认是否有人在家，谢谢",
     "fee": 30,
-    "status": "待发货",
-    "tracking_company": "",
-    "tracking_no": "",
-    "create_time": "2026-10-07T23:02:12.291Z"
+    "status": "已发货",
+    "tracking_company": "顺丰",
+    "tracking_no": "SF5147089550648",
+    "create_time": "2026-10-07T23:02:12.291Z",
+    "ship_time": "2026-10-08T08:02:22.287Z"
   }
 ]
