@@ -259,10 +259,11 @@
     "expect_date": "2026-10-09",
     "remark": "",
     "fee": 0,
-    "status": "待发货",
-    "tracking_company": "",
-    "tracking_no": "",
-    "create_time": "2026-10-07T10:15:12.515Z"
+    "status": "已发货",
+    "tracking_company": "顺丰",
+    "tracking_no": "SF5147089948554",
+    "create_time": "2026-10-07T10:15:12.515Z",
+    "ship_time": "2026-10-08T08:02:41.195Z"
   },
   {
     "order_no": "XM2026100807021298187",
