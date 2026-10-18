@@ -297,9 +297,10 @@
     "expect_date": "2026-10-17",
     "remark": "",
     "fee": 0,
-    "status": "待发货",
-    "tracking_company": "",
-    "tracking_no": "",
-    "create_time": "2026-10-17T04:57:01.496Z"
+    "status": "已发货",
+    "tracking_company": "顺丰",
+    "tracking_no": "SF5146272408875",
+    "create_time": "2026-10-17T04:57:01.496Z",
+    "ship_time": "2026-10-18T00:40:32.948Z"
   }
 ]
