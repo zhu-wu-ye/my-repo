@@ -378,5 +378,23 @@
     "tracking_no": "SF5148859184927",
     "create_time": "2026-11-03T14:17:08.530Z",
     "ship_time": "2026-11-04T03:14:00.143Z"
+  },
+  {
+    "order_no": "XM2026110923082061749",
+    "card_no": "ZXJ1088-000753",
+    "card_type": "1088型",
+    "recv_name": "于荣",
+    "recv_phone": "18235273765",
+    "province": "山西省",
+    "city": "太原市",
+    "district": "小店区",
+    "address": "山西交通职业技术学院教工宿舍区，东南门",
+    "expect_date": "2026-11-09",
+    "remark": "",
+    "fee": 30,
+    "status": "待发货",
+    "tracking_company": "",
+    "tracking_no": "",
+    "create_time": "2026-11-09T15:08:20.885Z"
   }
 ]
